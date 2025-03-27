@@ -4,6 +4,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,12 +39,15 @@ public class Main {
             OutputStream outputStream = clientSocket.getOutputStream();
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             String line;
-            while ((line = bufferedReader.readLine()) != null && !line.isEmpty()) {
-                if (line.equals("PING")) {
+            while ((line = bufferedReader.readLine()) != null) {
+                if (line.startsWith("PING")) {
                     outputStream.write("+PONG\r\n".getBytes());
+                } else if (line.startsWith("ECHO")) {
+                    bufferedReader.readLine();
+                    String body = bufferedReader.readLine();
+                    outputStream.write(String.format("$%d\r\n%s\r\n", body.length(), body).getBytes());
                 }
             }
-
             outputStream.close();
             clientSocket.close();
         } catch (IOException e) {
