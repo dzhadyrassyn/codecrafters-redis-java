@@ -4,13 +4,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Main {
+
+    static Map<String, String> map = new HashMap<>();
+
     public static void main(String[] args) {
         // You can use print statements as follows for debugging, they'll be visible when running tests.
         System.out.println("Logs from your program will appear here!");
@@ -46,8 +47,24 @@ public class Main {
                     bufferedReader.readLine();
                     String body = bufferedReader.readLine();
                     outputStream.write(String.format("$%d\r\n%s\r\n", body.length(), body).getBytes());
+                } else if (line.startsWith("SET")) {
+                    bufferedReader.readLine();
+                    String key = bufferedReader.readLine();
+                    bufferedReader.readLine();
+                    String value = bufferedReader.readLine();
+                    map.put(key, value);
+                    outputStream.write("+OK\r\n".getBytes());
+                } else if (line.startsWith("GET")) {
+                    bufferedReader.readLine();
+                    String key = bufferedReader.readLine();
+                    if (map.containsKey(key)) {
+                        outputStream.write(String.format("$%d\r\n%s\r\n", map.get(key).length(), map.get(key)).getBytes());
+                    } else {
+                        outputStream.write("$-1\r\n".getBytes());
+                    }
                 }
             }
+
             outputStream.close();
             clientSocket.close();
         } catch (IOException e) {
