@@ -2,13 +2,11 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class Main {
 
-    static Map<String, String[]> map = new ConcurrentHashMap<>();
+    static Map<String, String> storage = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
         // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -34,48 +32,35 @@ public class Main {
 
     private static void handleClientRequest(Socket clientSocket) {
 
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
         try {
             OutputStream outputStream = clientSocket.getOutputStream();
+            String[] values = processInput(clientSocket.getInputStream());
 
-            List<String> values = processInput(clientSocket.getInputStream());
-
-            String command = values.getFirst();
+            String command = values[0];
             switch (command) {
                 case "PING" -> outputStream.write("+PONG\r\n".getBytes());
                 case "ECHO" ->
-                        outputStream.write(String.format("$%d\r\n%s\r\n", values.get(1).length(), values.get(1)).getBytes());
+                        outputStream.write(String.format("$%d\r\n%s\r\n", values[1].length(), values[1]).getBytes());
                 case "SET" -> {
-                    String key = values.get(1);
-                    String value = values.get(2);
-                    map.put(key, new String[]{value, ""});
+                    String key = values[1];
+                    String value = values[2];
+                    storage.put(key, value);
 
-                    if (values.size() >= 4 && values.get(3).equals("px")) {
-                        long expiryTime = System.currentTimeMillis() + Long.parseLong(values.get(4));
-                        map.get(key)[1] = expiryTime + "";
+                    if (values.length >= 4 && values[3].equals("px")) {
+                        long expiryTime = System.currentTimeMillis() + Long.parseLong(values[4]);
+                        scheduledExecutorService.schedule(() -> storage.remove(key), expiryTime, TimeUnit.MICROSECONDS);
                     }
                     outputStream.write("+OK\r\n".getBytes());
                 }
                 case "GET" -> {
-                    String key = values.get(1);
-                    if (map.containsKey(key)) {
-                        String[] data = map.get(key);
-                        if (data[1].isEmpty()) {
-                            String body = data[0];
-                            outputStream.write(String.format("$%d\r\n%s\r\n", body.length(), body).getBytes());
-                        } else {
-                            long expiryDate = Long.parseLong(data[1]);
-                            if (expiryDate >= System.currentTimeMillis()) {
-                                String body = data[0];
-                                outputStream.write(String.format("$%d\r\n%s\r\n", body.length(), body).getBytes());
-                            } else {
-                                map.remove(key);
-                                outputStream.write("$-1\r\n".getBytes());
-                                outputStream.flush();
-                            }
-                        }
-                    } else {
+                    String key = values[1];
+                    String value = storage.getOrDefault(key, null);
+                    if (value == null) {
                         outputStream.write("$-1\r\n".getBytes());
-                        outputStream.flush();
+                    } else {
+                        outputStream.write(String.format("$%d\r\n%s\r\n", value.length(), value).getBytes());
                     }
                 }
             }
@@ -87,17 +72,21 @@ public class Main {
         }
     }
 
-    private static List<String> processInput(InputStream inputStream) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-        char[] buffer  = new char[1024];
-        bufferedReader.read(buffer);
+    private static String[] processInput(InputStream inputStream) throws IOException {
 
-        List<String> values = new ArrayList<>();
-        String[] lines = new String(buffer).split("\r\n");
-        for(int i = 2; i < lines.length - 1; i += 2) {
-            values.add(lines[i]);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String firstLine = reader.readLine();
+        if (firstLine.charAt(0) != '*') throw new IOException("Wrong redis input format");
+
+        // Read array length
+        int numElements = Integer.parseInt(firstLine.substring(1));
+
+        String[] result = new String[numElements];
+        for (int i = 0; i < numElements; i++) {
+            reader.readLine();  // Read "$3"
+            result[i] = reader.readLine();  // Read actual string
         }
 
-        return values;
+        return result;
     }
 }
