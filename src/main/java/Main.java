@@ -6,19 +6,19 @@ import java.util.concurrent.*;
 
 public class Main {
 
-    static Map<String, String> storage = new ConcurrentHashMap<>();
+    private static final int PORT = 6379;
+    private static final int THREAD_POOL_SIZE = 10;
+    private static Map<String, String> storage = new ConcurrentHashMap<>();
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
 
     public static void main(String[] args) {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        System.out.println("Logs from your program will appear here!");
 
-        int port = 6379;
+        System.out.println("Redis-like server is starting on port " + PORT + "...");
 
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
-
-        try(ServerSocket serverSocket = new ServerSocket(port)) {
+        try(ServerSocket serverSocket = new ServerSocket(PORT)) {
 
             serverSocket.setReuseAddress(true);
+            ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
             while(true) {
                 Socket clientSocket = serverSocket.accept();
@@ -32,68 +32,86 @@ public class Main {
 
     private static void handleClientRequest(Socket clientSocket) {
 
-        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            OutputStream outputStream = clientSocket.getOutputStream();
+        try (
+                BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                OutputStream outputStream = clientSocket.getOutputStream()
+        ) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] values = processInput(line, reader);
-
-                String command = values[0];
-                switch (command) {
-                    case "PING" -> outputStream.write("+PONG\r\n".getBytes());
-                    case "ECHO" ->
-                            outputStream.write(String.format("$%d\r\n%s\r\n", values[1].length(), values[1]).getBytes());
-                    case "SET" -> {
-                        String key = values[1];
-                        String value = values[2];
-                        storage.put(key, value);
-
-                        if (values.length >= 4 && values[3].equals("px")) {
-                            long expiryTime = Long.parseLong(values[4]);
-                            scheduledExecutorService.schedule(() -> storage.remove(key), expiryTime, TimeUnit.MILLISECONDS);
-                        }
-                        outputStream.write("+OK\r\n".getBytes());
-                    }
-                    case "GET" -> {
-                        String key = values[1];
-                        String value = storage.getOrDefault(key, null);
-                        if (value == null) {
-                            outputStream.write("$-1\r\n".getBytes());
-                        } else {
-                            outputStream.write(String.format("$%d\r\n%s\r\n", value.length(), value).getBytes());
-                        }
-                    }
+                String[] commandArgs = parseRedisCommand(line, reader);
+                if (commandArgs.length == 0) {
+                    continue;
                 }
+                String response = processCommand(commandArgs);
+                outputStream.write(response.getBytes());
+                outputStream.flush();
             }
-
-            outputStream.flush();
-            outputStream.close();
-            clientSocket.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Client connection error: " + e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.err.println("Error closing client socket: " + e.getMessage());
+            }
         }
     }
 
-    private static String[] processInput(String line, BufferedReader reader) throws IOException {
+    private static String processCommand(String[] args) {
+        String command = args[0];
 
-        if (line == null || !line.startsWith("*")) {
-            throw new IOException("Wrong redis input format");  // Empty if no valid command
+        return switch (command) {
+            case "PING" -> "+PONG\r\n";
+            case "ECHO" -> formatBulkString(args[1]);
+            case "SET" -> handleSetCommand(args);
+            case "GET" -> handleGetCommand(args[1]);
+            default -> "-ERR Unknown command\r\n";
+        };
+    }
+
+    private static String formatBulkString(String value) {
+        return String.format("$%d\r\n%s\r\n", value.length(), value);
+    }
+
+    private static String handleGetCommand(String key) {
+        String value = storage.get(key);
+        return (value == null) ? "$-1\r\n" : formatBulkString(value);
+    }
+
+    private static String handleSetCommand(String[] args) {
+        if (args.length < 3) return "-ERR wrong number of arguments for 'SET' command\r\n";
+
+        String key = args[1];
+        String value = args[2];
+        storage.put(key, value);
+
+        if (args.length >= 5 && args[3].equalsIgnoreCase("px")) {
+            try {
+                long expiryMillis = Long.parseLong(args[4]);
+                scheduler.schedule(() -> storage.remove(key), expiryMillis, TimeUnit.MILLISECONDS);
+            } catch (NumberFormatException e) {
+                return "-ERR PX value is not a valid integer\r\n";
+            }
         }
 
-        // Read array length
-        int numElements = Integer.parseInt(line.substring(1));
+        return "+OK\r\n";
+    }
 
+    private static String[] parseRedisCommand(String firstLine, BufferedReader reader) throws IOException {
+
+        if (firstLine == null || !firstLine.startsWith("*")) {
+            throw new IOException("Invalid RESP2 input format");
+        }
+
+        int numElements = Integer.parseInt(firstLine.substring(1));
         String[] result = new String[numElements];
-        for (int i = 0; i < numElements; i++) {
-            String lengthLine = reader.readLine(); // Read "$<length>"
-            int length = Integer.parseInt(lengthLine.substring(1)); // Extract length
-            char[] buffer = new char[length];
-            reader.read(buffer, 0, length);  // Read exact number of characters
-            reader.readLine();  // Consume the trailing \r\n
 
+        for (int i = 0; i < numElements; i++) {
+            String lengthLine = reader.readLine();
+            int length = Integer.parseInt(lengthLine.substring(1));
+            char[] buffer = new char[length];
+            reader.read(buffer, 0, length);
+            reader.readLine();  // Consume trailing \r\n
             result[i] = new String(buffer);
         }
 
