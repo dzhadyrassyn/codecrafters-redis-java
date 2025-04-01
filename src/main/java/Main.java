@@ -10,10 +10,16 @@ public class Main {
     private static final int THREAD_POOL_SIZE = 10;
     private static Map<String, String> storage = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
+    private static File RDB_FILE;
 
     public static void main(String[] args) {
 
         System.out.println("Redis-like server is starting on port " + PORT + "...");
+
+        if (args.length == 4 && args[0].equals("--dir") && args[2].equals("--dbfilename")) {
+            RDB_FILE = new File(args[1] + "/" + args[3]);
+            RDB_FILE.getParentFile().mkdirs();
+        }
 
         try(ServerSocket serverSocket = new ServerSocket(PORT)) {
 
@@ -65,12 +71,17 @@ public class Main {
             case "ECHO" -> formatBulkString(args[1]);
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args[1]);
+            case "CONFIG" -> handleConfigCommand(args);
             default -> "-ERR Unknown command\r\n";
         };
     }
 
     private static String formatBulkString(String value) {
         return String.format("$%d\r\n%s\r\n", value.length(), value);
+    }
+
+    private static String formatBulkArray(String key, String value) {
+        return String.format("*2\r\n$%d\r\n%s\r\n" + formatBulkString(value), key.length(), key);
     }
 
     private static String handleGetCommand(String key) {
@@ -95,6 +106,16 @@ public class Main {
         }
 
         return "+OK\r\n";
+    }
+
+    private static String handleConfigCommand(String[] args) {
+        if (args[2].equals("dir")) {
+            String dirPath = RDB_FILE.getParentFile().getAbsolutePath();
+            return formatBulkArray("dir", dirPath);
+        } else if (args[2].equals("dbfilename")) {
+            return formatBulkArray("dbfilename", RDB_FILE.getName());
+        }
+        throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
 
     private static String[] parseRedisCommand(String firstLine, BufferedReader reader) throws IOException {
