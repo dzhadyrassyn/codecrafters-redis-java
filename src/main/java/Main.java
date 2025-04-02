@@ -72,8 +72,13 @@ public class Main {
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args[1]);
             case "CONFIG" -> handleConfigCommand(args);
+            case "KEYS" -> handleKeyCommand(args[1]);
             default -> "-ERR Unknown command\r\n";
         };
+    }
+
+    private static String handleKeyCommand(String arg) {
+        return "*1\r\n$3\r\nfoo\r\n"; //TODO work on implementation
     }
 
     private static String formatBulkString(String value) {
