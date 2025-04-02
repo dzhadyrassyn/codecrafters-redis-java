@@ -64,6 +64,7 @@ public class Main {
     }
 
     private static String processCommand(String[] args) {
+
         String command = args[0];
 
         return switch (command) {
