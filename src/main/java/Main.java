@@ -8,18 +8,15 @@ public class Main {
 
     private static final int PORT = 6379;
     private static final int THREAD_POOL_SIZE = 10;
-    private static Map<String, String> storage = new ConcurrentHashMap<>();
+    private static final Map<String, String> storage = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
-    private static File RDB_FILE;
+    private static final Map<String, String> programArgs = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
 
-        System.out.println("Redis-like server is starting on port " + PORT + "...");
+        processInputArgs(args);
 
-        if (args.length == 4 && args[0].equals("--dir") && args[2].equals("--dbfilename")) {
-            RDB_FILE = new File(args[1] + "/" + args[3]);
-            RDB_FILE.getParentFile().mkdirs();
-        }
+        System.out.println("Redis-like server is starting on port " + PORT + "...");
 
         try(ServerSocket serverSocket = new ServerSocket(PORT)) {
 
@@ -33,6 +30,13 @@ public class Main {
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void processInputArgs(String[] args) {
+        if (args.length == 4 && args[0].equals("--dir") && args[2].equals("--dbfilename")) {
+            programArgs.put("dir", args[1]);
+            programArgs.put("dbfilename", args[3]);
         }
     }
 
@@ -114,11 +118,11 @@ public class Main {
     }
 
     private static String handleConfigCommand(String[] args) {
+        String dirPath = programArgs.get("dir");
         if (args[2].equals("dir")) {
-            String dirPath = RDB_FILE.getParentFile().getAbsolutePath();
             return formatBulkArray("dir", dirPath);
         } else if (args[2].equals("dbfilename")) {
-            return formatBulkArray("dbfilename", RDB_FILE.getName());
+            return formatBulkArray("dbfilename", dirPath + "/" + programArgs.get("dbfilename"));
         }
         throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
