@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -82,7 +83,34 @@ public class Main {
     }
 
     private static String handleKeyCommand(String arg) {
-        return "*1\r\n$3\r\nfoo\r\n"; //TODO work on implementation
+        String fileName = programArgs.get("dir") + "/" + programArgs.get("dbfilename");
+        File file = new File(fileName);
+        if (!file.exists()) {
+            return "*1\r\n$3\r\nfoo\r\n";
+        }
+
+        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+            parseRDB(bis);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        throw new RuntimeException("Cannot read keys");
+    }
+
+    private static void parseRDB(BufferedInputStream bis) throws IOException {
+        DataInputStream dis = new DataInputStream(bis);
+
+        if(!readMagicString(dis)) {
+            throw new IOException("Not a valid RDB file");
+        }
+    }
+
+    private static boolean readMagicString(DataInputStream dis) throws IOException {
+
+        byte[] magic = new byte[5];
+        dis.readFully(magic);
+        return new String(magic, StandardCharsets.UTF_8).equals("REDIS");
     }
 
     private static String formatBulkString(String value) {
