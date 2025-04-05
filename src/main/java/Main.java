@@ -104,6 +104,9 @@ public class Main {
         if(!readMagicString(dis)) {
             throw new IOException("Not a valid RDB file");
         }
+
+        String version = readVersion(dis);
+        System.out.println("REDIS version: " + version);
     }
 
     private static boolean readMagicString(DataInputStream dis) throws IOException {
@@ -111,6 +114,12 @@ public class Main {
         byte[] magic = new byte[5];
         dis.readFully(magic);
         return new String(magic, StandardCharsets.UTF_8).equals("REDIS");
+    }
+
+    private static String readVersion(DataInputStream dis) throws IOException {
+        byte[] versionBytes = new byte[4];
+        dis.readFully(versionBytes);
+        return new String(versionBytes, StandardCharsets.UTF_8);
     }
 
     private static String formatBulkString(String value) {
