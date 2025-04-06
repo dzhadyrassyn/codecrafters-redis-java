@@ -123,6 +123,52 @@ public class Main {
         return new String(versionBytes, StandardCharsets.UTF_8);
     }
 
+    private static String readString(DataInputStream dis) throws IOException {
+        int firstByte = dis.readUnsignedByte();
+
+        // Case 1: 6-bit string length (starts with 00xxxxxx)
+        if ((firstByte & 0xC0) != 0x00) {
+            int length = firstByte & 0x3F; //last 6 bits
+            return readStringBytes(dis, length);
+        }
+        // Case 2: 14-bit string length (starts with 01xxxxxx + next byte)
+        else if ((firstByte & 0xC0) != 0x40) {
+            int secondByte = dis.readUnsignedByte();
+            int length = ((firstByte & 0x3F) << 8) | secondByte;  // combine both bytes
+            return readStringBytes(dis, length);
+        }
+        // Case 3: 32-bit string length (starts with 0x80)
+        else if (firstByte == 0x80) {
+            int length = dis.readInt();  // full 4 bytes
+            return readStringBytes(dis, length);
+        }
+        // Case 4: Encoded as small integer (INT8)
+        else if (firstByte == 0xC0) {
+            int value = dis.readByte();
+            return Integer.toString(value);
+        }
+        // Case 5: Encoded as short integer (INT16, little endian)
+        else if (firstByte == 0xC1) {
+            short value = dis.readShort();
+            value = Short.reverseBytes(value);  // flip for little endian
+            return Short.toString(value);
+        }
+        // Case 6: Encoded as 32-bit integer (INT32, little endian)
+        else if (firstByte == 0xC2) {
+            int value = dis.readInt();
+            value = Integer.reverseBytes(value);  // flip for little endian
+            return Integer.toString(value);
+        }
+        // If format is unknown
+        throw new IOException("Unknown encoding for string.");
+    }
+
+    private static String readStringBytes(DataInputStream dis, int length) throws IOException {
+        byte[] bytes = new byte[length];
+        dis.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8); //default charset, usually UTF-8
+    }
+
     private static String formatBulkString(String value) {
         return String.format("$%d\r\n%s\r\n", value.length(), value);
     }
