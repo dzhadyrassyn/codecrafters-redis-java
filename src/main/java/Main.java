@@ -101,19 +101,20 @@ public class Main {
     private static void parseRDB(BufferedInputStream bis) throws IOException {
         DataInputStream dis = new DataInputStream(bis);
 
-        if(!readMagicString(dis)) {
+        String magicString = readMagicString(dis);
+        if (!magicString.equals("REDIS")) {
             throw new IOException("Not a valid RDB file");
         }
 
-        String version = readVersion(dis);
-        System.out.println("REDIS version: " + version);
+        String versionNumber = readVersion(dis);
+        System.out.println("HEADER SECTION: " + magicString + versionNumber);
     }
 
-    private static boolean readMagicString(DataInputStream dis) throws IOException {
+    private static String readMagicString(DataInputStream dis) throws IOException {
 
         byte[] magic = new byte[5];
         dis.readFully(magic);
-        return new String(magic, StandardCharsets.UTF_8).equals("REDIS");
+        return new String(magic, StandardCharsets.UTF_8);
     }
 
     private static String readVersion(DataInputStream dis) throws IOException {
