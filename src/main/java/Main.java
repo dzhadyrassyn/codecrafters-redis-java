@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
@@ -108,6 +110,33 @@ public class Main {
 
         String versionNumber = readVersion(dis);
         System.out.println("HEADER SECTION: " + magicString + versionNumber);
+
+        while (dis.available() > 0) {
+            int opCode = dis.readUnsignedByte();
+
+            if (opCode == 0xFA) { // Metadata section
+                String key = readString(dis);
+                String value = readString(dis);
+                System.out.println("Metadata: " + key + " = " + value);
+            } else if (opCode == 0xFE) { // Database selector
+                int dbNumber = dis.readUnsignedByte();
+                System.out.println("\nSwitched to database: " + dbNumber);
+            } else if (opCode == 0xFD) { // Expiry time (seconds)
+                int expiry = dis.readInt();
+                System.out.println("Key with expiry: " + expiry);
+            } else if (opCode == 0xFC) { // Expiry time (milliseconds)
+                long expiry = dis.readLong();
+                System.out.println("Key with expiry (ms): " + expiry);
+            } else if (opCode == 0xFF) { // End of RDB file
+                System.out.println("End of RDB file.");
+                break;
+            } else {
+                // Read Key
+                String key = readString(dis);
+                // Skip the value (or parse based on type)
+                System.out.println("Key: " + key);
+            }
+        }
     }
 
     private static String readMagicString(DataInputStream dis) throws IOException {
@@ -126,47 +155,37 @@ public class Main {
     private static String readString(DataInputStream dis) throws IOException {
         int firstByte = dis.readUnsignedByte();
 
-        // Case 1: 6-bit string length (starts with 00xxxxxx)
-        if ((firstByte & 0xC0) != 0x00) {
-            int length = firstByte & 0x3F; //last 6 bits
-            return readStringBytes(dis, length);
-        }
-        // Case 2: 14-bit string length (starts with 01xxxxxx + next byte)
-        else if ((firstByte & 0xC0) != 0x40) {
+        if ((firstByte & 0xC0) == 0x00) {
+            // 6-bit length string
+            int length = firstByte & 0x3F;
+            byte[] bytes = dis.readNBytes(length);
+            return new String(bytes);
+        } else if ((firstByte & 0xC0) == 0x40) {
+            // 14-bit length string
             int secondByte = dis.readUnsignedByte();
-            int length = ((firstByte & 0x3F) << 8) | secondByte;  // combine both bytes
-            return readStringBytes(dis, length);
-        }
-        // Case 3: 32-bit string length (starts with 0x80)
-        else if (firstByte == 0x80) {
-            int length = dis.readInt();  // full 4 bytes
-            return readStringBytes(dis, length);
-        }
-        // Case 4: Encoded as small integer (INT8)
-        else if (firstByte == 0xC0) {
+            int length = ((firstByte & 0x3F) << 8) | secondByte;
+            byte[] bytes = dis.readNBytes(length);
+            return new String(bytes);
+        } else if (firstByte == 0x80) {
+            // 32-bit length string
+            int length = dis.readInt();
+            byte[] bytes = dis.readNBytes(length);
+            return new String(bytes);
+        } else if (firstByte == 0xC0) {
+            // Encoded as 8-bit int (INT8)
             int value = dis.readByte();
             return Integer.toString(value);
-        }
-        // Case 5: Encoded as short integer (INT16, little endian)
-        else if (firstByte == 0xC1) {
-            short value = dis.readShort();
-            value = Short.reverseBytes(value);  // flip for little endian
+        } else if (firstByte == 0xC1) {
+            // Encoded as 16-bit int (INT16), little-endian
+            short value = Short.reverseBytes(dis.readShort());
             return Short.toString(value);
-        }
-        // Case 6: Encoded as 32-bit integer (INT32, little endian)
-        else if (firstByte == 0xC2) {
-            int value = dis.readInt();
-            value = Integer.reverseBytes(value);  // flip for little endian
+        } else if (firstByte == 0xC2) {
+            // Encoded as 32-bit int (INT32), little-endian
+            int value = Integer.reverseBytes(dis.readInt());
             return Integer.toString(value);
+        } else {
+            throw new IOException("Unsupported string encoding, first byte: " + String.format("0x%02X", firstByte));
         }
-        // If format is unknown
-        throw new IOException("Unknown encoding for string.");
-    }
-
-    private static String readStringBytes(DataInputStream dis, int length) throws IOException {
-        byte[] bytes = new byte[length];
-        dis.readFully(bytes);
-        return new String(bytes, StandardCharsets.UTF_8); //default charset, usually UTF-8
     }
 
     private static String formatBulkString(String value) {
