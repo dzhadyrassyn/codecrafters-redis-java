@@ -84,15 +84,20 @@ public class Main {
         };
     }
 
-    private static String handleKeyCommand(String arg) {
+    private static File getRDBFile() {
         String fileName = programArgs.get("dir") + "/" + programArgs.get("dbfilename");
         File file = new File(fileName);
         if (!file.exists()) {
-            return "*1\r\n$3\r\nfoo\r\n";
+            throw new RuntimeException("File not found: " + fileName);
         }
 
-        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-            parseRDB(bis);
+        return file;
+    }
+
+    private static String handleKeyCommand(String arg) {
+
+        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
+            return parseRDB(bis);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -100,7 +105,7 @@ public class Main {
         throw new RuntimeException("Cannot read keys");
     }
 
-    private static void parseRDB(BufferedInputStream bis) throws IOException {
+    private static String parseRDB(BufferedInputStream bis) throws IOException {
         DataInputStream dis = new DataInputStream(bis);
 
         String magicString = readMagicString(dis);
@@ -110,6 +115,8 @@ public class Main {
 
         String versionNumber = readVersion(dis);
         System.out.println("HEADER SECTION: " + magicString + versionNumber);
+
+        List<String> values = new ArrayList<>();
 
         while (dis.available() > 0) {
             int opCode = dis.readUnsignedByte();
@@ -121,6 +128,10 @@ public class Main {
             } else if (opCode == 0xFE) { // Database selector
                 int dbNumber = dis.readUnsignedByte();
                 System.out.println("\nSwitched to database: " + dbNumber);
+            } else if (opCode == 0xFB) { // RDB_OPCODE_RESIZEDB
+                int dbHashTableSize = readLength(dis);
+                int expiryHashTableSize = readLength(dis);
+                System.out.printf("Resize DB - keys: %d, expires: %d%n", dbHashTableSize, expiryHashTableSize);
             } else if (opCode == 0xFD) { // Expiry time (seconds)
                 int expiry = dis.readInt();
                 System.out.println("Key with expiry: " + expiry);
@@ -133,9 +144,27 @@ public class Main {
             } else {
                 // Read Key
                 String key = readString(dis);
-                // Skip the value (or parse based on type)
-                System.out.println("Key: " + key);
+                String value = readString(dis);
+                System.out.println("Key: " + key + ", Value: " + value);
+                values.add(key);
+//                values.add(value);
             }
+        }
+
+        return formatBulkArray(values);
+    }
+
+    private static int readLength(DataInputStream dis) throws IOException {
+        int first = dis.readUnsignedByte();
+        if ((first & 0xC0) == 0x00) {
+            return first & 0x3F;
+        } else if ((first & 0xC0) == 0x40) {
+            int second = dis.readUnsignedByte();
+            return ((first & 0x3F) << 8) | second;
+        } else if ((first & 0xC0) == 0x80) {
+            return dis.readInt();
+        } else {
+            throw new IOException("Unsupported length encoding: " + String.format("0x%02X", first));
         }
     }
 
@@ -192,8 +221,14 @@ public class Main {
         return String.format("$%d\r\n%s\r\n", value.length(), value);
     }
 
-    private static String formatBulkArray(String key, String value) {
-        return String.format("*2\r\n$%d\r\n%s\r\n" + formatBulkString(value), key.length(), key);
+    private static String formatBulkArray(List<String> args) {
+
+        StringBuilder response = new StringBuilder();
+        response.append("*").append(args.size()).append("\r\n");
+        for(String arg : args) {
+            response.append(formatBulkString(arg));
+        }
+        return response.toString();
     }
 
     private static String handleGetCommand(String key) {
@@ -223,9 +258,9 @@ public class Main {
     private static String handleConfigCommand(String[] args) {
         String dirPath = programArgs.get("dir");
         if (args[2].equals("dir")) {
-            return formatBulkArray("dir", dirPath);
+            return formatBulkArray(List.of("dir", dirPath));
         } else if (args[2].equals("dbfilename")) {
-            return formatBulkArray("dbfilename", dirPath + "/" + programArgs.get("dbfilename"));
+            return formatBulkArray(List.of("dbfilename", dirPath + "/" + programArgs.get("dbfilename")));
         }
         throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
