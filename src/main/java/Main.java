@@ -1,10 +1,9 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 public class Main {
@@ -17,7 +16,19 @@ public class Main {
 
     public static void main(String[] args) {
 
+        System.out.println("Processing input args...");
         processInputArgs(args);
+
+        File rdbFile = getRDBFile();
+        if (rdbFile.exists()) {
+            System.out.println("Parsing RDB file...");
+            try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
+                parseRDB(bis);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException("Cannot read keys");
+            }
+        }
 
         System.out.println("Redis-like server is starting on port " + PORT + "...");
 
@@ -85,13 +96,9 @@ public class Main {
     }
 
     private static File getRDBFile() {
-        String fileName = programArgs.get("dir") + "/" + programArgs.get("dbfilename");
-        File file = new File(fileName);
-        if (!file.exists()) {
-            throw new RuntimeException("File not found: " + fileName);
-        }
 
-        return file;
+        String fileName = programArgs.get("dir") + "/" + programArgs.get("dbfilename");
+        return new File(fileName);
     }
 
     private static String handleKeyCommand(String arg) {
@@ -115,8 +122,6 @@ public class Main {
 
         String versionNumber = readVersion(dis);
         System.out.println("HEADER SECTION: " + magicString + versionNumber);
-
-        List<String> values = new ArrayList<>();
 
         while (dis.available() > 0) {
             int opCode = dis.readUnsignedByte();
@@ -146,12 +151,11 @@ public class Main {
                 String key = readString(dis);
                 String value = readString(dis);
                 System.out.println("Key: " + key + ", Value: " + value);
-                values.add(key);
-//                values.add(value);
+                storage.put(key, value);
             }
         }
 
-        return formatBulkArray(values);
+        return formatBulkArray(storage.keySet().stream().toList());
     }
 
     private static int readLength(DataInputStream dis) throws IOException {
