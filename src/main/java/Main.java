@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -32,10 +34,11 @@ public class Main {
 
         System.out.println("Redis-like server is starting on port " + PORT + "...");
 
-        try(ServerSocket serverSocket = new ServerSocket(PORT)) {
+        try(ServerSocket serverSocket = new ServerSocket(PORT);
+            ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
+        ) {
 
             serverSocket.setReuseAddress(true);
-            ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
             while(true) {
                 Socket clientSocket = serverSocket.accept();
@@ -90,7 +93,7 @@ public class Main {
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args[1]);
             case "CONFIG" -> handleConfigCommand(args);
-            case "KEYS" -> handleKeyCommand(args[1]);
+            case "KEYS" -> handleKeyCommand();
             default -> "-ERR Unknown command\r\n";
         };
     }
@@ -101,7 +104,7 @@ public class Main {
         return new File(fileName);
     }
 
-    private static String handleKeyCommand(String arg) {
+    private static String handleKeyCommand() {
 
         try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
             return parseRDB(bis);
@@ -138,24 +141,57 @@ public class Main {
                 int expiryHashTableSize = readLength(dis);
                 System.out.printf("Resize DB - keys: %d, expires: %d%n", dbHashTableSize, expiryHashTableSize);
             } else if (opCode == 0xFD) { // Expiry time (seconds)
-                int expiry = dis.readInt();
+                int expiry = readLittleEndianInt(dis);
                 System.out.println("Key with expiry: " + expiry);
+                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
+                if (valueType == 0x00) { // string
+                    saveKeyValueToStorage(dis, TimeUnit.SECONDS.toMillis(expiry));
+                } else {
+                    throw new IOException("Unsupported value type after expiry (0xFD): " + valueType);
+                }
             } else if (opCode == 0xFC) { // Expiry time (milliseconds)
-                long expiry = dis.readLong();
+                long expiry = readLittleEndianLong(dis);
                 System.out.println("Key with expiry (ms): " + expiry);
+                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
+                if (valueType == 0x00) {
+                    saveKeyValueToStorage(dis, expiry);
+                } else {
+                    throw new IOException("Unsupported value type after expiry (0xFC): " + valueType);
+                }
             } else if (opCode == 0xFF) { // End of RDB file
                 System.out.println("End of RDB file.");
                 break;
             } else {
                 // Read Key
-                String key = readString(dis);
-                String value = readString(dis);
-                System.out.println("Key: " + key + ", Value: " + value);
-                storage.put(key, value);
+                saveKeyValueToStorage(dis, 0L);
             }
         }
 
         return formatBulkArray(storage.keySet().stream().toList());
+    }
+
+    private static int readLittleEndianInt(DataInputStream dis) throws IOException {
+        byte[] bytes = new byte[4];
+        dis.readFully(bytes);
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    private static long readLittleEndianLong(DataInputStream dis) throws IOException {
+        byte[] bytes = new byte[8];
+        dis.readFully(bytes);
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
+    }
+
+    private static void saveKeyValueToStorage(DataInputStream dis, long expiry) throws IOException {
+        String key = readString(dis);
+        String value = readString(dis);
+        System.out.println("Key: " + key + ", Value: " + value);
+
+        if (expiry != 0L) {
+            handleSetCommand(new String[]{"SET", key, value, "px", Long.toString(expiry - System.currentTimeMillis())});
+        } else {
+            handleSetCommand(new String[]{"SET", key, value});
+        }
     }
 
     private static int readLength(DataInputStream dis) throws IOException {
