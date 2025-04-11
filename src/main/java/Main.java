@@ -258,6 +258,7 @@ public class Main {
     }
 
     private static String formatBulkString(String value) {
+
         return String.format("$%d\r\n%s\r\n", value.length(), value);
     }
 
@@ -272,6 +273,7 @@ public class Main {
     }
 
     private static String handleGetCommand(String key) {
+
         String value = storage.get(key);
         return (value == null) ? "$-1\r\n" : formatBulkString(value);
     }
