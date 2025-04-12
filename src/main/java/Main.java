@@ -104,8 +104,17 @@ public class Main {
             case "GET" -> handleGetCommand(args[1]);
             case "CONFIG" -> handleConfigCommand(args);
             case "KEYS" -> handleKeyCommand();
+            case "INFO" -> handleInfoCommand(args[1]);
             default -> "-ERR Unknown command\r\n";
         };
+    }
+
+    private static String handleInfoCommand(String infoArgument) {
+        if (infoArgument.equals("replication")) {
+            return formatBulkString("role:master");
+        }
+
+        throw new IllegalArgumentException("Unknown info command: " + infoArgument);
     }
 
     private static File getRDBFile() {
