@@ -15,6 +15,7 @@ public class Main {
     private static final Map<String, String> storage = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
     private static final Map<String, String> programArgs = new ConcurrentHashMap<>();
+    private static boolean IS_MASTER = true;
 
     public static void main(String[] args) {
 
@@ -33,7 +34,8 @@ public class Main {
         }
 
         int redisPort = getPort();
-        System.out.println("Redis-like server is starting on port " + redisPort + "...");
+        setIsMasterInstance();
+        System.out.printf("Redis-like %s server is starting on port %d ...%n", IS_MASTER ? "MASTER" : "REPLICA", redisPort);
 
         try(ServerSocket serverSocket = new ServerSocket(redisPort);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
@@ -49,6 +51,10 @@ public class Main {
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
+    }
+
+    private static void setIsMasterInstance() {
+        IS_MASTER = !programArgs.containsKey("replicaof");
     }
 
     private static int getPort() {
@@ -111,7 +117,7 @@ public class Main {
 
     private static String handleInfoCommand(String infoArgument) {
         if (infoArgument.equals("replication")) {
-            return formatBulkString("role:master");
+            return IS_MASTER ? formatBulkString("role:master") : formatBulkString("role:slave");
         }
 
         throw new IllegalArgumentException("Unknown info command: " + infoArgument);
