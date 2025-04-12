@@ -10,7 +10,7 @@ import java.util.concurrent.*;
 
 public class Main {
 
-    private static final int PORT = 6379;
+    private static final int DEFAULT_PORT = 6379;
     private static final int THREAD_POOL_SIZE = 10;
     private static final Map<String, String> storage = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
@@ -32,9 +32,10 @@ public class Main {
             }
         }
 
-        System.out.println("Redis-like server is starting on port " + PORT + "...");
+        int redisPort = getPort();
+        System.out.println("Redis-like server is starting on port " + redisPort + "...");
 
-        try(ServerSocket serverSocket = new ServerSocket(PORT);
+        try(ServerSocket serverSocket = new ServerSocket(redisPort);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
         ) {
 
@@ -50,10 +51,19 @@ public class Main {
         }
     }
 
+    private static int getPort() {
+        if (programArgs.containsKey("port")) {
+            return Integer.parseInt(programArgs.get("port"));
+        }
+        return DEFAULT_PORT;
+    }
+
     private static void processInputArgs(String[] args) {
-        if (args.length == 4 && args[0].equals("--dir") && args[2].equals("--dbfilename")) {
-            programArgs.put("dir", args[1]);
-            programArgs.put("dbfilename", args[3]);
+        for(int i = 0; i < args.length; i++) {
+            if(args[i].startsWith("--")) {
+                programArgs.put(args[i].substring(2), args[i + 1]);
+                ++i;
+            }
         }
     }
 
