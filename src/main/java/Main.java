@@ -116,11 +116,14 @@ public class Main {
     }
 
     private static String handleInfoCommand(String infoArgument) {
+        StringBuilder info = new StringBuilder();
         if (infoArgument.equals("replication")) {
-            return IS_MASTER ? formatBulkString("role:master") : formatBulkString("role:slave");
+            info.append(IS_MASTER ? "role:master" : "role:slave");
         }
+        info.append("\r\n").append("master_repl_offset:0");
+        info.append("\r\n").append("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb");
 
-        throw new IllegalArgumentException("Unknown info command: " + infoArgument);
+        return formatBulkString(info.toString());
     }
 
     private static File getRDBFile() {
