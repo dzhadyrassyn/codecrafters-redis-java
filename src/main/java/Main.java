@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +23,12 @@ public class Main {
         System.out.println("Processing input args...");
         processInputArgs(args);
 
+        int redisPort = getPort();
+        setIsMasterInstance();
+
+        if (!IS_MASTER) {
+            sendHandshake();
+        }
         File rdbFile = getRDBFile();
         if (rdbFile.exists()) {
             System.out.println("Parsing RDB file...");
@@ -33,8 +40,6 @@ public class Main {
             }
         }
 
-        int redisPort = getPort();
-        setIsMasterInstance();
         System.out.printf("Redis-like %s server is starting on port %d ...%n", IS_MASTER ? "MASTER" : "REPLICA", redisPort);
 
         try(ServerSocket serverSocket = new ServerSocket(redisPort);
@@ -50,6 +55,19 @@ public class Main {
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void sendHandshake() {
+        String[] masterInfo = programArgs.get("replicaof").split(" ");
+        String host = masterInfo[0];
+        int port = Integer.parseInt(masterInfo[1]);
+
+        try(Socket socket = new Socket(host, port)) {
+            String ping = "*1\r\n$4\r\nping\r\n";
+            socket.getOutputStream().write(ping.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
