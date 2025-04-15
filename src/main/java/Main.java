@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -65,7 +64,29 @@ public class Main {
 
         try(Socket socket = new Socket(host, port)) {
             String ping = "*1\r\n$4\r\nping\r\n";
-            socket.getOutputStream().write(ping.getBytes(StandardCharsets.UTF_8));
+            OutputStream outputStream = socket.getOutputStream();
+            outputStream.write(ping.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
+
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String masterResponse = bufferedReader.readLine();
+            System.out.println("Response from master to PING: " + masterResponse);
+
+            if (masterResponse.equalsIgnoreCase("+PONG")) {
+                outputStream.write(formatBulkArray(List.of("REPLCONF", "listening-port", Integer.toString(getPort()))).getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
+
+                masterResponse = bufferedReader.readLine();
+                System.out.println("Response from master to REPLCONF listening-port " + getPort() + ": " + masterResponse);
+
+                if (masterResponse.equalsIgnoreCase("+OK")) {
+                    outputStream.write(formatBulkArray(List.of("REPLCONF", "capa", "psync2")).getBytes(StandardCharsets.UTF_8));
+                    outputStream.flush();
+
+                    masterResponse = bufferedReader.readLine();
+                    System.out.println("Response from master to REPLCONF capa psync2: " + masterResponse);
+                }
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -129,8 +150,13 @@ public class Main {
             case "CONFIG" -> handleConfigCommand(args);
             case "KEYS" -> handleKeyCommand();
             case "INFO" -> handleInfoCommand(args[1]);
+            case "REPLCONF" -> handleReplConf();
             default -> "-ERR Unknown command\r\n";
         };
+    }
+
+    private static String handleReplConf() {
+        return "+OK\r\n";
     }
 
     private static String handleInfoCommand(String infoArgument) {
