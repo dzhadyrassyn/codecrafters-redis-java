@@ -63,33 +63,32 @@ public class Main {
         int port = Integer.parseInt(masterInfo[1]);
 
         try(Socket socket = new Socket(host, port)) {
+
             String ping = "*1\r\n$4\r\nping\r\n";
             OutputStream outputStream = socket.getOutputStream();
-            outputStream.write(ping.getBytes(StandardCharsets.UTF_8));
-            outputStream.flush();
-
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            String masterResponse = bufferedReader.readLine();
-            System.out.println("Response from master to PING: " + masterResponse);
+            sendToMaster(bufferedReader, outputStream, ping);
 
-            if (masterResponse.equalsIgnoreCase("+PONG")) {
-                outputStream.write(formatBulkArray(List.of("REPLCONF", "listening-port", Integer.toString(getPort()))).getBytes(StandardCharsets.UTF_8));
-                outputStream.flush();
+            String replConf1 = formatBulkArray(List.of("REPLCONF", "listening-port", Integer.toString(getPort())));
+            sendToMaster(bufferedReader, outputStream, replConf1);
 
-                masterResponse = bufferedReader.readLine();
-                System.out.println("Response from master to REPLCONF listening-port " + getPort() + ": " + masterResponse);
+            String replConf2 = formatBulkArray(List.of("REPLCONF", "capa", "psync2"));
+            sendToMaster(bufferedReader, outputStream, replConf2);
 
-                if (masterResponse.equalsIgnoreCase("+OK")) {
-                    outputStream.write(formatBulkArray(List.of("REPLCONF", "capa", "psync2")).getBytes(StandardCharsets.UTF_8));
-                    outputStream.flush();
-
-                    masterResponse = bufferedReader.readLine();
-                    System.out.println("Response from master to REPLCONF capa psync2: " + masterResponse);
-                }
-            }
+            String psync = formatBulkArray(List.of("PSYNC", "?", "-1"));
+            sendToMaster(bufferedReader, outputStream, psync);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void sendToMaster(BufferedReader bufferedReader, OutputStream outputStream, String request) throws IOException {
+
+        System.out.println("Sending to master: " + request);
+        outputStream.write(request.getBytes(StandardCharsets.UTF_8));
+        outputStream.flush();
+        String response = bufferedReader.readLine();
+        System.out.println("Response from master: " + response);
     }
 
     private static void setIsMasterInstance() {
@@ -151,8 +150,13 @@ public class Main {
             case "KEYS" -> handleKeyCommand();
             case "INFO" -> handleInfoCommand(args[1]);
             case "REPLCONF" -> handleReplConf();
+            case "PSYNC" -> handlePSync();
             default -> "-ERR Unknown command\r\n";
         };
+    }
+
+    private static String handlePSync() {
+        return "+OK\r\n";
     }
 
     private static String handleReplConf() {
