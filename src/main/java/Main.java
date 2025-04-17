@@ -16,6 +16,8 @@ public class Main {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
     private static final Map<String, String> programArgs = new ConcurrentHashMap<>();
     private static boolean IS_MASTER = true;
+    private static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+    private static final String MASTER_OFFSET = "0";
 
     public static void main(String[] args) {
 
@@ -156,7 +158,7 @@ public class Main {
     }
 
     private static String handlePSync() {
-        return "+OK\r\n";
+        return formatBulkString("+FULLRESYNC " + MASTER_REPL_ID + " 0");
     }
 
     private static String handleReplConf() {
@@ -168,8 +170,9 @@ public class Main {
         if (infoArgument.equals("replication")) {
             info.append(IS_MASTER ? "role:master" : "role:slave");
         }
-        info.append("\r\n").append("master_repl_offset:0");
-        info.append("\r\n").append("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb");
+        info.append("\r\n").append("master_repl_offset:" + MASTER_OFFSET);
+
+        info.append("\r\n").append("master_replid:" + MASTER_REPL_ID);
 
         return formatBulkString(info.toString());
     }
@@ -234,7 +237,7 @@ public class Main {
                 } else {
                     throw new IOException("Unsupported value type after expiry (0xFC): " + valueType);
                 }
-            } else if (opCode == 0xFF) { // End of RDB file
+            } else if (opCode == 0xFF) { // End of an RDB file
                 System.out.println("End of RDB file.");
                 break;
             } else {
