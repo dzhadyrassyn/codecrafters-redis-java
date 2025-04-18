@@ -4,6 +4,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -125,9 +126,16 @@ public class Main {
                 if (commandArgs.length == 0) {
                     continue;
                 }
-                String response = processCommand(commandArgs);
-                outputStream.write(response.getBytes());
-                outputStream.flush();
+                RedisResponse redisResponse = processCommand(commandArgs);
+                if (redisResponse instanceof TextResponse(String data)) {
+                    outputStream.write(data.getBytes());
+                    outputStream.flush();
+                } else if (redisResponse instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
+                    outputStream.write(header.getBytes());
+                    outputStream.write(("$" + rdbBytes.length + "\r\n").getBytes());
+                    outputStream.write(rdbBytes);
+                }
+
             }
         } catch (IOException e) {
             System.err.println("Client connection error: " + e.getMessage());
@@ -140,12 +148,12 @@ public class Main {
         }
     }
 
-    private static String processCommand(String[] args) {
+    private static RedisResponse processCommand(String[] args) {
         String command = args[0];
 
         return switch (command) {
-            case "PING" -> "+PONG\r\n";
-            case "ECHO" -> formatBulkString(args[1]);
+            case "PING" -> new TextResponse("+PONG\r\n");
+            case "ECHO" -> new TextResponse(formatBulkString(args[1]));
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args[1]);
             case "CONFIG" -> handleConfigCommand(args);
@@ -153,19 +161,25 @@ public class Main {
             case "INFO" -> handleInfoCommand(args[1]);
             case "REPLCONF" -> handleReplConf();
             case "PSYNC" -> handlePSync();
-            default -> "-ERR Unknown command\r\n";
+            default -> new TextResponse("-ERR Unknown command\r\n");
         };
     }
 
-    private static String handlePSync() {
-        return formatBulkString("+FULLRESYNC " + MASTER_REPL_ID + " 0");
+    private static RedisResponse handlePSync() {
+
+        String fullResyncResponse = formatBulkString("+FULLRESYNC " + MASTER_REPL_ID + " 0");
+
+        String emptyRDBFileContent = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==";
+        byte[] bytes = Base64.getDecoder().decode(emptyRDBFileContent);
+
+        return new RDBSyncResponse(fullResyncResponse, bytes);
     }
 
-    private static String handleReplConf() {
-        return "+OK\r\n";
+    private static RedisResponse handleReplConf() {
+        return new TextResponse("+OK\r\n");
     }
 
-    private static String handleInfoCommand(String infoArgument) {
+    private static RedisResponse handleInfoCommand(String infoArgument) {
         StringBuilder info = new StringBuilder();
         if (infoArgument.equals("replication")) {
             info.append(IS_MASTER ? "role:master" : "role:slave");
@@ -174,7 +188,7 @@ public class Main {
 
         info.append("\r\n").append("master_replid:" + MASTER_REPL_ID);
 
-        return formatBulkString(info.toString());
+        return new TextResponse(formatBulkString(info.toString()));
     }
 
     private static File getRDBFile() {
@@ -183,10 +197,10 @@ public class Main {
         return new File(fileName);
     }
 
-    private static String handleKeyCommand() {
+    private static RedisResponse handleKeyCommand() {
 
         try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
-            return parseRDB(bis);
+            return new TextResponse(parseRDB(bis));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -351,14 +365,14 @@ public class Main {
         return response.toString();
     }
 
-    private static String handleGetCommand(String key) {
+    private static RedisResponse handleGetCommand(String key) {
 
         String value = storage.get(key);
-        return (value == null) ? "$-1\r\n" : formatBulkString(value);
+        return new TextResponse((value == null) ? "$-1\r\n" : formatBulkString(value));
     }
 
-    private static String handleSetCommand(String[] args) {
-        if (args.length < 3) return "-ERR wrong number of arguments for 'SET' command\r\n";
+    private static RedisResponse handleSetCommand(String[] args) {
+        if (args.length < 3) throw new RuntimeException("-ERR wrong number of arguments for 'SET' command\r\n");
 
         String key = args[1];
         String value = args[2];
@@ -369,19 +383,19 @@ public class Main {
                 long expiryMillis = Long.parseLong(args[4]);
                 scheduler.schedule(() -> storage.remove(key), expiryMillis, TimeUnit.MILLISECONDS);
             } catch (NumberFormatException e) {
-                return "-ERR PX value is not a valid integer\r\n";
+                throw new RuntimeException("Unable to parse expiry milliseconds: " + args[4], e);
             }
         }
 
-        return "+OK\r\n";
+        return new TextResponse("+OK\r\n");
     }
 
-    private static String handleConfigCommand(String[] args) {
+    private static RedisResponse handleConfigCommand(String[] args) {
         String dirPath = programArgs.get("dir");
         if (args[2].equals("dir")) {
-            return formatBulkArray(List.of("dir", dirPath));
+            return new TextResponse(formatBulkArray(List.of("dir", dirPath)));
         } else if (args[2].equals("dbfilename")) {
-            return formatBulkArray(List.of("dbfilename", dirPath + "/" + programArgs.get("dbfilename")));
+            return new TextResponse(formatBulkArray(List.of("dbfilename", dirPath + "/" + programArgs.get("dbfilename"))));
         }
         throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
