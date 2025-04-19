@@ -4,6 +4,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,8 @@ public class Main {
     private static boolean IS_MASTER = true;
     private static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
     private static final String MASTER_OFFSET = "0";
+    private static final List<String> WRITE_COMMANDS = List.of("SET");
+    private static final List<Socket> replicaSockets = new ArrayList<>();
 
     public static void main(String[] args) {
 
@@ -116,36 +119,57 @@ public class Main {
 
     private static void handleClientRequest(Socket clientSocket) {
 
-        try (
-                BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                OutputStream outputStream = clientSocket.getOutputStream()
+        try (clientSocket;
+             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             OutputStream outputStream = clientSocket.getOutputStream()
         ) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] commandArgs = parseRedisCommand(line, reader);
-                if (commandArgs.length == 0) {
-                    continue;
-                }
-                RedisResponse redisResponse = processCommand(commandArgs);
-                if (redisResponse instanceof TextResponse(String data)) {
-                    outputStream.write(data.getBytes());
-                    outputStream.flush();
-                } else if (redisResponse instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
-                    outputStream.write(header.getBytes());
-                    outputStream.write(("$" + rdbBytes.length + "\r\n").getBytes());
-                    outputStream.write(rdbBytes);
-                }
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] commandArgs = parseRedisCommand(line, reader);
+                    if (commandArgs.length == 0) {
+                        continue;
+                    }
+                    RedisResponse redisResponse = processCommand(commandArgs);
+                    if (redisResponse instanceof TextResponse(String data)) {
+                        outputStream.write(data.getBytes());
+                        outputStream.flush();
+                    } else if (redisResponse instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
+                        outputStream.write(header.getBytes());
+                        outputStream.write(("$" + rdbBytes.length + "\r\n").getBytes());
+                        outputStream.write(rdbBytes);
+                    }
 
+                    String command = commandArgs[0];
+                    if (command.equals("PSYNC")) {
+                        replicaSockets.add(clientSocket);
+                    }
+
+                    if (WRITE_COMMANDS.contains(command)) {
+                        propagateToReplicas(commandArgs);
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("Client connection error: " + e.getMessage());
             }
         } catch (IOException e) {
-            System.err.println("Client connection error: " + e.getMessage());
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                System.err.println("Error closing client socket: " + e.getMessage());
-            }
+            System.err.println("Error closing client socket: " + e.getMessage());
         }
+    }
+
+    private static void propagateToReplicas(String[] commandArgs) throws IOException {
+        System.out.println("Propagating to replicas...");
+        System.out.println("Replicas amount: " + replicaSockets.size());
+        replicaSockets.forEach(replicaSocket -> {
+            try {
+                OutputStream outputStream = replicaSocket.getOutputStream();
+
+                outputStream.write(formatBulkArray(List.of(commandArgs)).getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static RedisResponse processCommand(String[] args) {
