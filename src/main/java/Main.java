@@ -4,10 +4,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class Main {
@@ -70,31 +67,85 @@ public class Main {
 
         try(Socket socket = new Socket(host, port)) {
 
-            String ping = "*1\r\n$4\r\nping\r\n";
             OutputStream outputStream = socket.getOutputStream();
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            sendToMaster(bufferedReader, outputStream, ping);
+            InputStream inputStream = socket.getInputStream();
+
+            String ping = "*1\r\n$4\r\nping\r\n";
+            sendToMaster(outputStream, ping);
+            System.out.println("Response from master is " + readLine(inputStream));
 
             String replConf1 = formatBulkArray(List.of("REPLCONF", "listening-port", Integer.toString(getPort())));
-            sendToMaster(bufferedReader, outputStream, replConf1);
+            sendToMaster(outputStream, replConf1);
+            System.out.println("Response from master is " + readLine(inputStream));
 
             String replConf2 = formatBulkArray(List.of("REPLCONF", "capa", "psync2"));
-            sendToMaster(bufferedReader, outputStream, replConf2);
+            sendToMaster(outputStream, replConf2);
+            System.out.println("Response from master is " + readLine(inputStream));
 
             String psync = formatBulkArray(List.of("PSYNC", "?", "-1"));
-            sendToMaster(bufferedReader, outputStream, psync);
+            sendToMaster(outputStream, psync);
+            String response = readLine(inputStream);
+            System.out.println("Response from master is " + response);
+            if (response.contains("FULLRESYNC")) {
+                parsePSyncFromMaster(inputStream);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void sendToMaster(BufferedReader bufferedReader, OutputStream outputStream, String request) throws IOException {
+    private static void parsePSyncFromMaster(InputStream input) throws IOException {
+        String bulk = readLine(input);    // $88
+        int length = Integer.parseInt(bulk.substring(1));
+        byte[] rdb = input.readNBytes(length);
+        parseRDB(new BufferedInputStream(new ByteArrayInputStream(rdb)));
+
+        while (true) {
+            System.out.println("Continue reading from master ...");
+            String line = readLine(input); // might start with "*"
+            System.out.println("Response from master is " + line);
+            if (line == null || line.isEmpty()) {
+                System.out.println("Stopping reading from master ...");
+                break;
+            }
+
+            if (line.startsWith("*")) {
+                int numArgs = Integer.parseInt(line.substring(1));
+                String[] args = new String[numArgs];
+
+                for (int i = 0; i < numArgs; i++) {
+                    readLine(input); // skip $<length>
+                    args[i] = readLine(input);
+                }
+                System.out.println("args from master:" + Arrays.toString(args));
+
+                // Process command
+                processCommand(args);  // e.g. apply SET in memory
+            }
+        }
+    }
+
+    private static String readLine(InputStream input) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int b;
+        while ((b = input.read()) != -1) {
+            if (b == '\r') {
+                int next = input.read();
+                if (next == '\n') break;
+                buffer.write(b);
+                buffer.write(next);
+            } else {
+                buffer.write(b);
+            }
+        }
+        return buffer.toString(StandardCharsets.UTF_8);
+    }
+
+    private static void sendToMaster(OutputStream outputStream, String request) throws IOException {
 
         System.out.println("Sending to master: " + request);
         outputStream.write(request.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
-        String response = bufferedReader.readLine();
-        System.out.println("Response from master: " + response);
     }
 
     private static void setIsMasterInstance() {
