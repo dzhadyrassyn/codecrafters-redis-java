@@ -28,20 +28,6 @@ public class Main {
         int redisPort = getPort();
         setIsMasterInstance();
 
-        if (!IS_MASTER) {
-            sendHandshake();
-        }
-        File rdbFile = getRDBFile();
-        if (rdbFile.exists()) {
-            System.out.println("Parsing RDB file...");
-            try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
-                parseRDB(bis);
-            } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException("Cannot read keys");
-            }
-        }
-
         System.out.printf("Redis-like %s server is starting on port %d ...%n", IS_MASTER ? "MASTER" : "REPLICA", redisPort);
 
         try(ServerSocket serverSocket = new ServerSocket(redisPort);
@@ -49,6 +35,20 @@ public class Main {
         ) {
 
             serverSocket.setReuseAddress(true);
+
+            if (!IS_MASTER) {
+                sendHandshake();
+            }
+            File rdbFile = getRDBFile();
+            if (rdbFile.exists() && IS_MASTER) {
+                System.out.println("Parsing RDB file...");
+                try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
+                    parseRDB(bis);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("Cannot read keys");
+                }
+            }
 
             while(true) {
                 Socket clientSocket = serverSocket.accept();
