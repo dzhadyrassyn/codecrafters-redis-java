@@ -17,8 +17,8 @@ public class Main {
     private static boolean IS_MASTER = true;
     private static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
     private static final String MASTER_OFFSET = "0";
-    private static final List<String> WRITE_COMMANDS = List.of("SET");
-    private static final List<Socket> replicaSockets = new ArrayList<>();
+    private static final List<String> REPLICA_PROPAGATE_COMMANDS = List.of("SET");
+    private static final Queue<Socket> replicaSockets = new ConcurrentLinkedQueue<>();
 
     public static void main(String[] args) {
 
@@ -196,7 +196,7 @@ public class Main {
                         replicaSockets.add(clientSocket);
                     }
 
-                    if (WRITE_COMMANDS.contains(command)) {
+                    if (IS_MASTER && REPLICA_PROPAGATE_COMMANDS.contains(command)) {
                         propagateToReplicas(commandArgs);
                     }
                 }
