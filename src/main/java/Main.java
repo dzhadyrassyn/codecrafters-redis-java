@@ -218,6 +218,7 @@ public class Main {
                 outputStream.write(formatBulkArray(List.of(commandArgs)).getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
             } catch (IOException e) {
+                e.printStackTrace();
                 throw new RuntimeException(e);
             }
         });
@@ -461,6 +462,9 @@ public class Main {
                 throw new RuntimeException("Unable to parse expiry milliseconds: " + args[4], e);
             }
         }
+
+
+        System.out.println("Processed SET command: " + Arrays.toString(args) + " isMaster: " + IS_MASTER);
 
         return new TextResponse("+OK\r\n");
     }
