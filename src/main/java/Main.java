@@ -35,6 +35,7 @@ public class Main {
             if (!processConfig.isMaster()) {
                 sendHandshake(processConfig);
             }
+
             File rdbFile = processConfig.rdbFile();
             if (rdbFile.exists() && processConfig.isMaster()) {
                 System.out.println("Parsing RDB file...");
