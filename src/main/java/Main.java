@@ -9,12 +9,9 @@ import java.util.concurrent.*;
 
 public class Main {
 
-    private static final int DEFAULT_PORT = 6379;
     private static final int THREAD_POOL_SIZE = 10;
     private static final Map<String, String> storage = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
-    private static final Map<String, String> programArgs = new ConcurrentHashMap<>();
-    private static boolean IS_MASTER = true;
     private static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
     private static final String MASTER_OFFSET = "0";
     private static final List<String> REPLICA_PROPAGATE_COMMANDS = List.of("SET");
@@ -22,13 +19,12 @@ public class Main {
 
     public static void main(String[] args) {
 
-        System.out.println("Processing input args...");
-        processInputArgs(args);
+        System.out.println("Loading configuration...");
+        Config processConfig = Config.fromArgs(args);
+        System.out.println("Configuration loaded: " + processConfig);
 
-        int redisPort = getPort();
-        setIsMasterInstance();
-
-        System.out.printf("Redis-like %s server is starting on port %d ...%n", IS_MASTER ? "MASTER" : "REPLICA", redisPort);
+        int redisPort = processConfig.isMaster() ? processConfig.masterPort() : processConfig.replicaPort();
+        System.out.printf("Redis-like %s server is starting on port %d ...%n", processConfig.isMaster() ? "MASTER" : "REPLICA", redisPort);
 
         try(ServerSocket serverSocket = new ServerSocket(redisPort);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
@@ -36,13 +32,13 @@ public class Main {
 
             serverSocket.setReuseAddress(true);
 
-            if (!IS_MASTER) {
-                sendHandshake();
+            if (!processConfig.isMaster()) {
+                sendHandshake(processConfig);
             }
-            File rdbFile = getRDBFile();
-            if (rdbFile.exists() && IS_MASTER) {
+            File rdbFile = processConfig.rdbFile();
+            if (rdbFile.exists() && processConfig.isMaster()) {
                 System.out.println("Parsing RDB file...");
-                try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
+                try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(rdbFile))) {
                     parseRDB(bis);
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -53,17 +49,16 @@ public class Main {
             while(true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("accepted new connection");
-                executorService.submit(() -> handleClientRequest(clientSocket));
+                executorService.submit(() -> handleClientRequest(clientSocket, processConfig));
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
     }
 
-    private static void sendHandshake() {
-        String[] masterInfo = programArgs.get("replicaof").split(" ");
-        String host = masterInfo[0];
-        int port = Integer.parseInt(masterInfo[1]);
+    private static void sendHandshake(Config processConfig) {
+        String host = processConfig.masterHost();
+        int port = processConfig.masterPort();
 
         try(Socket socket = new Socket(host, port)) {
 
@@ -74,7 +69,7 @@ public class Main {
             sendToMaster(outputStream, ping);
             System.out.println("Response from master is " + readLine(inputStream));
 
-            String replConf1 = formatBulkArray(List.of("REPLCONF", "listening-port", Integer.toString(getPort())));
+            String replConf1 = formatBulkArray(List.of("REPLCONF", "listening-port", processConfig.replicaPort() + ""));
             sendToMaster(outputStream, replConf1);
             System.out.println("Response from master is " + readLine(inputStream));
 
@@ -87,14 +82,14 @@ public class Main {
             String response = readLine(inputStream);
             System.out.println("Response from master is " + response);
             if (response.contains("FULLRESYNC")) {
-                parsePSyncFromMaster(inputStream);
+                parsePSyncFromMaster(inputStream, processConfig);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void parsePSyncFromMaster(InputStream input) throws IOException {
+    private static void parsePSyncFromMaster(InputStream input, Config processConfig) throws IOException {
         String bulk = readLine(input);    // $88
         int length = Integer.parseInt(bulk.substring(1));
         byte[] rdb = input.readNBytes(length);
@@ -120,7 +115,7 @@ public class Main {
                 System.out.println("args from master:" + Arrays.toString(args));
 
                 // Process command
-                processCommand(args);  // e.g. apply SET in memory
+                processCommand(args, processConfig);  // e.g. apply SET in memory
             }
         }
     }
@@ -148,27 +143,7 @@ public class Main {
         outputStream.flush();
     }
 
-    private static void setIsMasterInstance() {
-        IS_MASTER = !programArgs.containsKey("replicaof");
-    }
-
-    private static int getPort() {
-        if (programArgs.containsKey("port")) {
-            return Integer.parseInt(programArgs.get("port"));
-        }
-        return DEFAULT_PORT;
-    }
-
-    private static void processInputArgs(String[] args) {
-        for(int i = 0; i < args.length; i++) {
-            if(args[i].startsWith("--")) {
-                programArgs.put(args[i].substring(2), args[i + 1]);
-                ++i;
-            }
-        }
-    }
-
-    private static void handleClientRequest(Socket clientSocket) {
+    private static void handleClientRequest(Socket clientSocket, Config processConfig) {
 
         try (clientSocket;
              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
@@ -181,7 +156,7 @@ public class Main {
                     if (commandArgs.length == 0) {
                         continue;
                     }
-                    RedisResponse redisResponse = processCommand(commandArgs);
+                    RedisResponse redisResponse = processCommand(commandArgs, processConfig);
                     if (redisResponse instanceof TextResponse(String data)) {
                         outputStream.write(data.getBytes());
                         outputStream.flush();
@@ -196,7 +171,7 @@ public class Main {
                         replicaSockets.add(clientSocket);
                     }
 
-                    if (IS_MASTER && REPLICA_PROPAGATE_COMMANDS.contains(command)) {
+                    if (processConfig.isMaster() && REPLICA_PROPAGATE_COMMANDS.contains(command)) {
                         propagateToReplicas(commandArgs);
                     }
                 }
@@ -224,7 +199,7 @@ public class Main {
         });
     }
 
-    private static RedisResponse processCommand(String[] args) {
+    private static RedisResponse processCommand(String[] args, Config processConfig) {
         String command = args[0];
 
         return switch (command) {
@@ -232,9 +207,9 @@ public class Main {
             case "ECHO" -> new TextResponse(formatBulkString(args[1]));
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args[1]);
-            case "CONFIG" -> handleConfigCommand(args);
-            case "KEYS" -> handleKeyCommand();
-            case "INFO" -> handleInfoCommand(args[1]);
+            case "CONFIG" -> handleConfigCommand(args, processConfig);
+            case "KEYS" -> handleKeyCommand(processConfig);
+            case "INFO" -> handleInfoCommand(args[1], processConfig);
             case "REPLCONF" -> handleReplConf();
             case "PSYNC" -> handlePSync();
             default -> new TextResponse("-ERR Unknown command\r\n");
@@ -255,10 +230,10 @@ public class Main {
         return new TextResponse("+OK\r\n");
     }
 
-    private static RedisResponse handleInfoCommand(String infoArgument) {
+    private static RedisResponse handleInfoCommand(String infoArgument, Config processConfig) {
         StringBuilder info = new StringBuilder();
         if (infoArgument.equals("replication")) {
-            info.append(IS_MASTER ? "role:master" : "role:slave");
+            info.append(processConfig.isMaster() ? "role:master" : "role:slave");
         }
         info.append("\r\n").append("master_repl_offset:" + MASTER_OFFSET);
 
@@ -267,15 +242,9 @@ public class Main {
         return new TextResponse(formatBulkString(info.toString()));
     }
 
-    private static File getRDBFile() {
+    private static RedisResponse handleKeyCommand(Config processConfig) {
 
-        String fileName = programArgs.get("dir") + "/" + programArgs.get("dbfilename");
-        return new File(fileName);
-    }
-
-    private static RedisResponse handleKeyCommand() {
-
-        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(getRDBFile()))) {
+        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(processConfig.rdbFile()))) {
             return new TextResponse(parseRDB(bis));
         } catch (IOException e) {
             e.printStackTrace();
@@ -464,17 +433,17 @@ public class Main {
         }
 
 
-        System.out.println("Processed SET command: " + Arrays.toString(args) + " isMaster: " + IS_MASTER);
+        System.out.println("Processed SET command: " + Arrays.toString(args));
 
         return new TextResponse("+OK\r\n");
     }
 
-    private static RedisResponse handleConfigCommand(String[] args) {
-        String dirPath = programArgs.get("dir");
+    private static RedisResponse handleConfigCommand(String[] args, Config processConfig) {
+        String dirPath = processConfig.dir();
         if (args[2].equals("dir")) {
             return new TextResponse(formatBulkArray(List.of("dir", dirPath)));
         } else if (args[2].equals("dbfilename")) {
-            return new TextResponse(formatBulkArray(List.of("dbfilename", dirPath + "/" + programArgs.get("dbfilename"))));
+            return new TextResponse(formatBulkArray(List.of("dbfilename", dirPath + "/" + processConfig.dbfilename())));
         }
         throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
