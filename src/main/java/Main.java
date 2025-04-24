@@ -23,7 +23,7 @@ public class Main {
         Config processConfig = Config.fromArgs(args);
         System.out.println("Configuration loaded: " + processConfig);
 
-        int redisPort = processConfig.isMaster() ? processConfig.masterPort() : processConfig.replicaPort();
+        int redisPort = processConfig.getPort();
         System.out.printf("Redis-like %s server is starting on port %d ...%n", processConfig.isMaster() ? "MASTER" : "REPLICA", redisPort);
 
         try(ServerSocket serverSocket = new ServerSocket(redisPort);

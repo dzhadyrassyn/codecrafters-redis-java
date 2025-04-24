@@ -34,4 +34,8 @@ public record Config(
         File rdbFile = new File(dir + "/" + dbfilename);
         return new Config(isMaster, replicaPort, masterHost, masterPort, dir, dbfilename, rdbFile);
     }
+
+    public int getPort() {
+        return isMaster ? masterPort : replicaPort;
+    }
 }
