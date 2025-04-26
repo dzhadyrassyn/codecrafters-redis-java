@@ -8,11 +8,12 @@ public class CommandDispatcher {
             case "PING":
                 return "+PONG\r\n";
             case "SET" -> {
-                String key = args[1];
-                String value = args[2];
-
-                Storage.set(key, value);
-
+                if (args.length == 5 && args[3].equalsIgnoreCase("px")) {
+                    long ttlMs = Long.parseLong(args[4]);
+                    Storage.setWithExpiry(args[1], args[2], ttlMs);
+                } else {
+                    Storage.set(args[1], args[2]);
+                }
                 ReplicationManager.propagateToReplicas(args);
                 return "+OK\r\n";
             }
