@@ -20,6 +20,36 @@ public class Storage {
 
     private static final Map<String, ValueWithExpiry> data = new ConcurrentHashMap<>();
 
+    static {
+        startBackgroundCleanup();
+    }
+
+    private static void startBackgroundCleanup() {
+        Thread.startVirtualThread(() -> {
+            while (true) {
+                try {
+                    int removed = 0;
+                    for (Map.Entry<String, ValueWithExpiry> entry : data.entrySet()) {
+                        if (entry.getValue().isExpired()) {
+                            data.remove(entry.getKey());
+                            removed++;
+                        }
+                    }
+                    if (removed > 0) {
+                        System.out.println("🧹 Cleaned up " + removed + " expired keys");
+                    }
+
+                    // Sleep for 10 seconds
+                    Thread.sleep(10_000);
+                } catch (InterruptedException e) {
+                    System.out.println("Background cleanup thread interrupted");
+                    Thread.currentThread().interrupt(); // Preserve interrupt status
+                    break;
+                }
+            }
+        });
+    }
+
     public static void set(String key, String value) {
         data.put(key, new ValueWithExpiry(value, null));
     }
