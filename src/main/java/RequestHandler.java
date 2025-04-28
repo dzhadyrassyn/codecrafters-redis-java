@@ -1,40 +1,53 @@
-import java.io.*;
-import java.net.Socket;
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class RequestHandler {
 
-    public static void handle(Socket socket, Config config) throws IOException {
-        try (
-                InputStream input = socket.getInputStream();
-                OutputStream output = socket.getOutputStream()
-        ) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
-            String line;
+    private final Config config;
+    private final CommandDispatcher dispatcher;
 
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("*")) {
-                    int argCount = Integer.parseInt(line.substring(1));
-                    String[] args = new String[argCount];
+    public RequestHandler(Config config) {
+        this.config = config;
+        this.dispatcher = new CommandDispatcher(config);
+    }
 
-                    for (int i = 0; i < argCount; i++) {
-                        String lenLine = reader.readLine(); // $<length>
-                        int len = Integer.parseInt(lenLine.substring(1));
-                        char[] buffer = new char[len];
-                        reader.read(buffer);
-                        reader.readLine(); // skip trailing \r\n
-                        args[i] = new String(buffer);
-                    }
+    public void handleWithPreloadedCommand(ConnectionContext ctx, String[] preloadedCommand) {
+        try {
+            processOneCommand(ctx, preloadedCommand);
 
-                    String response = CommandDispatcher.dispatch(args, config);
-                    if (response != null) {
-                        output.write(response.getBytes(StandardCharsets.UTF_8));
-                        output.flush();
-                    }
-                }
-            }
+            handle(ctx);
         } catch (IOException e) {
-            System.err.println("Client disconnected or error occurred: " + e.getMessage());
+            System.err.println("Error handling client: " + e.getMessage());
         }
     }
+
+    public void handle(ConnectionContext ctx) throws IOException {
+        BufferedInputStream input = ctx.getInput();
+
+        while (true) {
+            String[] args = Helper.parseRespCommand(input);
+            if (args == null) {
+                System.out.println("Client disconnected");
+                break;
+            }
+
+            processOneCommand(ctx, args);
+        }
+    }
+
+    private void processOneCommand(ConnectionContext ctx, String[] args) throws IOException {
+        RedisResponse response = dispatcher.dispatch(args);
+
+        if (response instanceof TextResponse(String data)) {
+            ctx.getOutput().write(data.getBytes(StandardCharsets.UTF_8));
+            ctx.getOutput().flush();
+        } else if (response instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
+            ctx.getOutput().write(header.getBytes(StandardCharsets.UTF_8));
+            ctx.getOutput().write(("$" + rdbBytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
+            ctx.getOutput().write(rdbBytes);
+            ctx.getOutput().flush();
+        }
+    }
+
 }

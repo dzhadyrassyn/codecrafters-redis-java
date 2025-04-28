@@ -9,52 +9,38 @@ import java.util.concurrent.*;
 
 public class Main {
 
-    private static final int THREAD_POOL_SIZE = 10;
-    private static final Map<String, String> storage = new ConcurrentHashMap<>();
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
-    private static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+    public static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
     private static final String MASTER_OFFSET = "0";
-    private static final List<String> REPLICA_PROPAGATE_COMMANDS = List.of("SET");
-    private static final Queue<Socket> replicaSockets = new ConcurrentLinkedQueue<>();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         System.out.println("Loading configuration...");
-        Config processConfig = Config.fromArgs(args);
-        System.out.println("Configuration loaded: " + processConfig);
+        Config config = Config.fromArgs(args);
+        System.out.println("Configuration loaded: " + config);
 
-        int redisPort = processConfig.getPort();
-        System.out.printf("Redis-like %s server is starting on port %d ...%n", processConfig.isMaster() ? "MASTER" : "REPLICA", redisPort);
-
-        try(ServerSocket serverSocket = new ServerSocket(redisPort);
-            ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
-        ) {
-
-            serverSocket.setReuseAddress(true);
-
-            if (!processConfig.isMaster()) {
-                sendHandshake(processConfig);
+        Server server = new Server(config);
+        Thread.startVirtualThread(() -> {
+            try {
+                server.start();
+            } catch (IOException e) {
+                throw new RuntimeException("Server error", e);
             }
+        });
 
-            File rdbFile = processConfig.rdbFile();
-            if (rdbFile.exists() && processConfig.isMaster()) {
-                System.out.println("Parsing RDB file...");
-                try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(rdbFile))) {
-                    parseRDB(bis);
+        // 2. If we are a replica, connect to master immediately
+        if (!config.isMaster()) {
+            ReplicaClient replicaClient = new ReplicaClient(config);
+            Thread.startVirtualThread(() -> {
+                try {
+                    replicaClient.connectToMaster();
                 } catch (IOException e) {
-                    e.printStackTrace();
-                    throw new RuntimeException("Cannot read keys");
+                    throw new RuntimeException("Replica connection failed", e);
                 }
-            }
-
-            while(true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("accepted new connection");
-                executorService.submit(() -> handleClientRequest(clientSocket, processConfig));
-            }
-        } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
+            });
         }
+
+        // 3. Main thread can just wait forever
+        Thread.currentThread().join();
     }
 
     private static void sendHandshake(Config processConfig) {
@@ -121,67 +107,11 @@ public class Main {
         }
     }
 
-    private static String readLine(InputStream input) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int b;
-        while ((b = input.read()) != -1) {
-            if (b == '\r') {
-                int next = input.read();
-                if (next == '\n') break;
-                buffer.write(b);
-                buffer.write(next);
-            } else {
-                buffer.write(b);
-            }
-        }
-        return buffer.toString(StandardCharsets.UTF_8);
-    }
-
     private static void sendToMaster(OutputStream outputStream, String request) throws IOException {
 
         System.out.println("Sending to master: " + request);
         outputStream.write(request.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
-    }
-
-    private static void handleClientRequest(Socket clientSocket, Config processConfig) {
-
-        try (clientSocket;
-             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             OutputStream outputStream = clientSocket.getOutputStream()
-        ) {
-            try {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    String[] commandArgs = parseRedisCommand(line, reader);
-                    if (commandArgs.length == 0) {
-                        continue;
-                    }
-                    RedisResponse redisResponse = processCommand(commandArgs, processConfig);
-                    if (redisResponse instanceof TextResponse(String data)) {
-                        outputStream.write(data.getBytes());
-                        outputStream.flush();
-                    } else if (redisResponse instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
-                        outputStream.write(header.getBytes());
-                        outputStream.write(("$" + rdbBytes.length + "\r\n").getBytes());
-                        outputStream.write(rdbBytes);
-                    }
-
-                    String command = commandArgs[0];
-                    if (command.equals("PSYNC")) {
-                        replicaSockets.add(clientSocket);
-                    }
-
-                    if (processConfig.isMaster() && REPLICA_PROPAGATE_COMMANDS.contains(command)) {
-                        propagateToReplicas(commandArgs);
-                    }
-                }
-            } catch (IOException e) {
-                System.err.println("Client connection error: " + e.getMessage());
-            }
-        } catch (IOException e) {
-            System.err.println("Error closing client socket: " + e.getMessage());
-        }
     }
 
     private static void propagateToReplicas(String[] commandArgs) throws IOException {
@@ -198,23 +128,6 @@ public class Main {
                 throw new RuntimeException(e);
             }
         });
-    }
-
-    private static RedisResponse processCommand(String[] args, Config processConfig) {
-        String command = args[0];
-
-        return switch (command) {
-            case "PING" -> new TextResponse("+PONG\r\n");
-            case "ECHO" -> new TextResponse(formatBulkString(args[1]));
-            case "SET" -> handleSetCommand(args);
-            case "GET" -> handleGetCommand(args[1]);
-            case "CONFIG" -> handleConfigCommand(args, processConfig);
-            case "KEYS" -> handleKeyCommand(processConfig);
-            case "INFO" -> handleInfoCommand(args[1], processConfig);
-            case "REPLCONF" -> handleReplConf();
-            case "PSYNC" -> handlePSync();
-            default -> new TextResponse("-ERR Unknown command\r\n");
-        };
     }
 
     private static RedisResponse handlePSync() {
@@ -254,147 +167,7 @@ public class Main {
         throw new RuntimeException("Cannot read keys");
     }
 
-    private static String parseRDB(BufferedInputStream bis) throws IOException {
-        DataInputStream dis = new DataInputStream(bis);
 
-        String magicString = readMagicString(dis);
-        if (!magicString.equals("REDIS")) {
-            throw new IOException("Not a valid RDB file");
-        }
-
-        String versionNumber = readVersion(dis);
-        System.out.println("HEADER SECTION: " + magicString + versionNumber);
-
-        while (dis.available() > 0) {
-            int opCode = dis.readUnsignedByte();
-
-            if (opCode == 0xFA) { // Metadata section
-                String key = readString(dis);
-                String value = readString(dis);
-                System.out.println("Metadata: " + key + " = " + value);
-            } else if (opCode == 0xFE) { // Database selector
-                int dbNumber = dis.readUnsignedByte();
-                System.out.println("\nSwitched to database: " + dbNumber);
-            } else if (opCode == 0xFB) { // RDB_OPCODE_RESIZEDB
-                int dbHashTableSize = readLength(dis);
-                int expiryHashTableSize = readLength(dis);
-                System.out.printf("Resize DB - keys: %d, expires: %d%n", dbHashTableSize, expiryHashTableSize);
-            } else if (opCode == 0xFD) { // Expiry time (seconds)
-                int expiry = readLittleEndianInt(dis);
-                System.out.println("Key with expiry: " + expiry);
-                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
-                if (valueType == 0x00) { // string
-                    saveKeyValueToStorage(dis, TimeUnit.SECONDS.toMillis(expiry));
-                } else {
-                    throw new IOException("Unsupported value type after expiry (0xFD): " + valueType);
-                }
-            } else if (opCode == 0xFC) { // Expiry time (milliseconds)
-                long expiry = readLittleEndianLong(dis);
-                System.out.println("Key with expiry (ms): " + expiry);
-                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
-                if (valueType == 0x00) {
-                    saveKeyValueToStorage(dis, expiry);
-                } else {
-                    throw new IOException("Unsupported value type after expiry (0xFC): " + valueType);
-                }
-            } else if (opCode == 0xFF) { // End of an RDB file
-                System.out.println("End of RDB file.");
-                break;
-            } else {
-                // Read Key
-                saveKeyValueToStorage(dis, 0L);
-            }
-        }
-
-        return formatBulkArray(storage.keySet().stream().toList());
-    }
-
-    private static int readLittleEndianInt(DataInputStream dis) throws IOException {
-        byte[] bytes = new byte[4];
-        dis.readFully(bytes);
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
-    }
-
-    private static long readLittleEndianLong(DataInputStream dis) throws IOException {
-        byte[] bytes = new byte[8];
-        dis.readFully(bytes);
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
-    }
-
-    private static void saveKeyValueToStorage(DataInputStream dis, long expiry) throws IOException {
-        String key = readString(dis);
-        String value = readString(dis);
-        System.out.println("Key: " + key + ", Value: " + value);
-
-        if (expiry != 0L) {
-            handleSetCommand(new String[]{"SET", key, value, "px", Long.toString(expiry - System.currentTimeMillis())});
-        } else {
-            handleSetCommand(new String[]{"SET", key, value});
-        }
-    }
-
-    private static int readLength(DataInputStream dis) throws IOException {
-        int first = dis.readUnsignedByte();
-        if ((first & 0xC0) == 0x00) {
-            return first & 0x3F;
-        } else if ((first & 0xC0) == 0x40) {
-            int second = dis.readUnsignedByte();
-            return ((first & 0x3F) << 8) | second;
-        } else if ((first & 0xC0) == 0x80) {
-            return dis.readInt();
-        } else {
-            throw new IOException("Unsupported length encoding: " + String.format("0x%02X", first));
-        }
-    }
-
-    private static String readMagicString(DataInputStream dis) throws IOException {
-
-        byte[] magic = new byte[5];
-        dis.readFully(magic);
-        return new String(magic, StandardCharsets.UTF_8);
-    }
-
-    private static String readVersion(DataInputStream dis) throws IOException {
-        byte[] versionBytes = new byte[4];
-        dis.readFully(versionBytes);
-        return new String(versionBytes, StandardCharsets.UTF_8);
-    }
-
-    private static String readString(DataInputStream dis) throws IOException {
-        int firstByte = dis.readUnsignedByte();
-
-        if ((firstByte & 0xC0) == 0x00) {
-            // 6-bit length string
-            int length = firstByte & 0x3F;
-            byte[] bytes = dis.readNBytes(length);
-            return new String(bytes);
-        } else if ((firstByte & 0xC0) == 0x40) {
-            // 14-bit length string
-            int secondByte = dis.readUnsignedByte();
-            int length = ((firstByte & 0x3F) << 8) | secondByte;
-            byte[] bytes = dis.readNBytes(length);
-            return new String(bytes);
-        } else if (firstByte == 0x80) {
-            // 32-bit length string
-            int length = dis.readInt();
-            byte[] bytes = dis.readNBytes(length);
-            return new String(bytes);
-        } else if (firstByte == 0xC0) {
-            // Encoded as 8-bit int (INT8)
-            int value = dis.readByte();
-            return Integer.toString(value);
-        } else if (firstByte == 0xC1) {
-            // Encoded as 16-bit int (INT16), little-endian
-            short value = Short.reverseBytes(dis.readShort());
-            return Short.toString(value);
-        } else if (firstByte == 0xC2) {
-            // Encoded as 32-bit int (INT32), little-endian
-            int value = Integer.reverseBytes(dis.readInt());
-            return Integer.toString(value);
-        } else {
-            throw new IOException("Unsupported string encoding, first byte: " + String.format("0x%02X", firstByte));
-        }
-    }
 
     private static String formatBulkString(String value) {
 
@@ -449,24 +222,4 @@ public class Main {
         throw new IllegalArgumentException("Unknown command: " + args[2]);
     }
 
-    private static String[] parseRedisCommand(String firstLine, BufferedReader reader) throws IOException {
-
-        if (firstLine == null || !firstLine.startsWith("*")) {
-            throw new IOException("Invalid RESP2 input format");
-        }
-
-        int numElements = Integer.parseInt(firstLine.substring(1));
-        String[] result = new String[numElements];
-
-        for (int i = 0; i < numElements; i++) {
-            String lengthLine = reader.readLine();
-            int length = Integer.parseInt(lengthLine.substring(1));
-            char[] buffer = new char[length];
-            reader.read(buffer, 0, length);
-            reader.readLine();  // Consume trailing \r\n
-            result[i] = new String(buffer);
-        }
-
-        return result;
-    }
 }

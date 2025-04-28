@@ -1,3 +1,4 @@
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -14,6 +15,7 @@ public class Server {
 
         int port = config.getPort();
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            serverSocket.setReuseAddress(true);
             System.out.println("Server started on port " + port);
 
             while (true) {
@@ -22,7 +24,7 @@ public class Server {
 
                 Thread.startVirtualThread(() -> {
                     try (socket) {
-                        Main.handleClientRequest(socket, config);
+                        handleClientRequest(socket, config);
                     } catch (IOException ex) {
                         System.err.println("Error handling request " + ex.getMessage());
                         ex.printStackTrace();
@@ -30,5 +32,29 @@ public class Server {
                 });
             }
         }
+    }
+
+    private void handleClientRequest(Socket socket, Config processConfig) {
+
+        try (ConnectionContext context = new ConnectionContext(socket)) {
+
+            BufferedInputStream input = context.getInput();
+
+            String[] args = Helper.parseRespCommand(input);
+
+            if (args == null) {
+                return; // Disconnected
+            }
+
+            String firstCommand = args[0].toUpperCase();
+            if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
+                new ReplicaHandshakeHandler(config).handleNewReplica(context);
+            } else {
+                new RequestHandler(config).handleWithPreloadedCommand(context, args);
+            }
+        } catch (IOException e) {
+            System.err.println("Error handling client: " + e.getMessage());
+        }
+
     }
 }
