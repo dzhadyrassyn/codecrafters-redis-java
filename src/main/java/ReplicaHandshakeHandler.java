@@ -1,5 +1,6 @@
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class ReplicaHandshakeHandler {
 
@@ -13,26 +14,18 @@ public class ReplicaHandshakeHandler {
 
         OutputStream output = context.getOutput();
 
-        String fullResync = "+FULLRESYNC " + Main.MASTER_REPL_ID + " 0\r\n";
+        String fullResync = Helper.formatBulkString("+FULLRESYNC " + Main.MASTER_REPL_ID + " 0");
+
         output.write(fullResync.getBytes(StandardCharsets.UTF_8));
-        output.flush();
 
-        File rdbFile = config.rdbFile();
-        if (!rdbFile.exists()) {
-            System.out.println("Warning: No RDB file found. Skipping RDB transmission.");
-            output.write("$0\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-        } else {
-            long rdbLength = rdbFile.length();
-            output.write(("$" + rdbLength + "\r\n").getBytes(StandardCharsets.UTF_8));
-
-            try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(rdbFile))) {
-                bis.transferTo(output);  // Copies entire RDB to output
-            }
-        }
+        byte[] rdbBytes = Storage.dumpRDB();
+        output.write(("$" + rdbBytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(rdbBytes);
 
         output.flush();
 
         System.out.println("Replica handshake complete for " + context.getSocket().getRemoteSocketAddress());
         ReplicationManager.addReplica(context);
     }
+
 }

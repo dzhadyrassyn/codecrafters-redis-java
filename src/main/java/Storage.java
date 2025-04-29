@@ -1,4 +1,5 @@
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -70,6 +71,12 @@ public class Storage {
         }
 
         return entry.value;
+    }
+
+    public static byte[] dumpRDB() {
+
+        String emptyRDBFileContent = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==";
+        return Base64.getDecoder().decode(emptyRDBFileContent);
     }
 
 }

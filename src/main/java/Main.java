@@ -27,7 +27,6 @@ public class Main {
             }
         });
 
-        // 2. If we are a replica, connect to master immediately
         if (!config.isMaster()) {
             ReplicaClient replicaClient = new ReplicaClient(config);
             Thread.startVirtualThread(() -> {
@@ -39,80 +38,9 @@ public class Main {
             });
         }
 
-        // 3. Main thread can just wait forever
         Thread.currentThread().join();
     }
 
-    private static void sendHandshake(Config processConfig) {
-        String host = processConfig.masterHost();
-        int port = processConfig.masterPort();
-
-        try(Socket socket = new Socket(host, port)) {
-
-            OutputStream outputStream = socket.getOutputStream();
-            InputStream inputStream = socket.getInputStream();
-
-            String ping = "*1\r\n$4\r\nping\r\n";
-            sendToMaster(outputStream, ping);
-            System.out.println("Response from master is " + readLine(inputStream));
-
-            String replConf1 = formatBulkArray(List.of("REPLCONF", "listening-port", processConfig.replicaPort() + ""));
-            sendToMaster(outputStream, replConf1);
-            System.out.println("Response from master is " + readLine(inputStream));
-
-            String replConf2 = formatBulkArray(List.of("REPLCONF", "capa", "psync2"));
-            sendToMaster(outputStream, replConf2);
-            System.out.println("Response from master is " + readLine(inputStream));
-
-            String psync = formatBulkArray(List.of("PSYNC", "?", "-1"));
-            sendToMaster(outputStream, psync);
-            String response = readLine(inputStream);
-            System.out.println("Response from master is " + response);
-            if (response.contains("FULLRESYNC")) {
-                parsePSyncFromMaster(inputStream, processConfig);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void parsePSyncFromMaster(InputStream input, Config processConfig) throws IOException {
-        String bulk = readLine(input);    // $88
-        int length = Integer.parseInt(bulk.substring(1));
-        byte[] rdb = input.readNBytes(length);
-        parseRDB(new BufferedInputStream(new ByteArrayInputStream(rdb)));
-
-        while (true) {
-            System.out.println("Continue reading from master ...");
-            String line = readLine(input); // might start with "*"
-            System.out.println("Response from master is " + line);
-            if (line == null || line.isEmpty()) {
-                System.out.println("Stopping reading from master ...");
-                break;
-            }
-
-            if (line.startsWith("*")) {
-                int numArgs = Integer.parseInt(line.substring(1));
-                String[] args = new String[numArgs];
-
-                for (int i = 0; i < numArgs; i++) {
-                    readLine(input); // skip $<length>
-                    args[i] = readLine(input);
-                }
-                System.out.println("args from master:" + Arrays.toString(args));
-
-                // Process command
-                processCommand(args, processConfig);  // e.g. apply SET in memory
-            }
-        }
-    }
-
-    private static void sendToMaster(OutputStream outputStream, String request) throws IOException {
-
-        System.out.println("Sending to master: " + request);
-        outputStream.write(request.getBytes(StandardCharsets.UTF_8));
-        outputStream.flush();
-    }
 
     private static void propagateToReplicas(String[] commandArgs) throws IOException {
         System.out.println("Propagating to replicas...");
@@ -167,22 +95,6 @@ public class Main {
         throw new RuntimeException("Cannot read keys");
     }
 
-
-
-    private static String formatBulkString(String value) {
-
-        return String.format("$%d\r\n%s\r\n", value.length(), value);
-    }
-
-    private static String formatBulkArray(List<String> args) {
-
-        StringBuilder response = new StringBuilder();
-        response.append("*").append(args.size()).append("\r\n");
-        for(String arg : args) {
-            response.append(formatBulkString(arg));
-        }
-        return response.toString();
-    }
 
     private static RedisResponse handleGetCommand(String key) {
 

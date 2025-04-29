@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class Helper {
 
@@ -52,5 +53,20 @@ public class Helper {
         }
 
         return args;
+    }
+
+    public static String formatBulkString(String value) {
+
+        return String.format("$%d\r\n%s\r\n", value.length(), value);
+    }
+
+    public static String formatBulkArray(List<String> args) {
+
+        StringBuilder response = new StringBuilder();
+        response.append("*").append(args.size()).append("\r\n");
+        for(String arg : args) {
+            response.append(formatBulkString(arg));
+        }
+        return response.toString();
     }
 }

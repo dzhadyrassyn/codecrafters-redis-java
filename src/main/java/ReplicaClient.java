@@ -20,43 +20,41 @@ public class ReplicaClient {
             OutputStream output = socket.getOutputStream();
             InputStream input = socket.getInputStream();
 
-            // 1. Send REPLCONF listening-port
+            sendCommand(output, "ping");
+
             sendCommand(output, "REPLCONF", "listening-port", String.valueOf(config.replicaPort()));
 
-            // 2. Send PSYNC
+            sendCommand(output, "REPLCONF", "capa", "psync2");
+
             sendCommand(output, "PSYNC", "?", "-1");
 
-            // 3. Read +FULLRESYNC
             String fullResyncLine = Helper.readLine(input);
             if (!fullResyncLine.startsWith("+FULLRESYNC")) {
                 throw new IOException("Expected FULLRESYNC, got: " + fullResyncLine);
             }
             System.out.println("Full resync: " + fullResyncLine);
 
-            // 4. Read $<length>\r\n
             String lengthLine = Helper.readLine(input);
             if (!lengthLine.startsWith("$")) {
                 throw new IOException("Expected bulk length for RDB file, got: " + lengthLine);
             }
             int rdbLength = Integer.parseInt(lengthLine.substring(1));
 
-            // 5. Read RDB bytes
             byte[] rdbBytes = input.readNBytes(rdbLength);
             BufferedInputStream rdbStream = new BufferedInputStream(new ByteArrayInputStream(rdbBytes));
-            RDBParser.parseRDB(rdbStream); // your parser!
+            RDBParser.parseRDB(rdbStream);
 
             System.out.println("Finished initial RDB sync");
 
-            // 6. Now handle live incoming commands
+            CommandDispatcher commandDispatcher = new CommandDispatcher(config);
             while (true) {
                 String[] args = Helper.parseRespCommand(input);
                 if (args == null) {
-                    System.out.println("🔌 Master closed connection");
+                    System.out.println("Master closed connection");
                     break;
                 }
 
-                // Apply the command locally
-                CommandDispatcher.dispatch(args, config);
+                commandDispatcher.dispatch(args);
             }
         }
     }
