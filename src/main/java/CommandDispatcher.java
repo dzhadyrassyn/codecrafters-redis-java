@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class CommandDispatcher {
 
     private final Config config;
@@ -34,7 +36,7 @@ public class CommandDispatcher {
 
         if (args.length >= 5 && args[3].equalsIgnoreCase("px")) {
             long ttlMillis = Long.parseLong(args[4]);
-            Storage.expire(key, ttlMillis);
+            Storage.setWithExpiry(key, value, ttlMillis);
         }
 
         ReplicationManager.propagateToReplicas(args);
@@ -53,9 +55,9 @@ public class CommandDispatcher {
         if (args.length >= 3 && args[1].equalsIgnoreCase("GET")) {
             String configKey = args[2];
             if (configKey.equals("dir")) {
-                return new TextResponse(formatBulkArray(List.of(configKey, config.rdbDir())));
+                return new TextResponse(formatBulkArray(List.of(configKey, config.dir())));
             } else if (configKey.equals("dbfilename")) {
-                return new TextResponse(formatBulkArray(List.of(configKey, config.rdbFileName())));
+                return new TextResponse(formatBulkArray(List.of(configKey, config.dbfilename())));
             }
         }
         return new TextResponse(formatBulkArray(List.of()));
@@ -73,11 +75,11 @@ public class CommandDispatcher {
             # Replication
             role:%s
             master_replid:%s
-            master_repl_offset:%d
+            master_repl_offset:%s
             """.formatted(
                 config.isMaster() ? "master" : "slave",
-                Main.master_replid,
-                Main.replicationOffset
+                Main.MASTER_REPL_ID,
+                Main.MASTER_OFFSET
         );
         return new TextResponse(formatBulkString(replicationInfo));
     }
@@ -87,7 +89,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handlePSync() {
-        return new RDBSyncResponse("+FULLRESYNC " + Main.master_replid + " 0\r\n", Storage.dumpRDB());
+        return new RDBSyncResponse("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + Main.MASTER_OFFSET + "\r\n", Storage.dumpRDB());
     }
 
     private RedisResponse unknownCommand(String cmd) {

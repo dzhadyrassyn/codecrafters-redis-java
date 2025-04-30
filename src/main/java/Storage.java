@@ -1,5 +1,7 @@
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -71,6 +73,10 @@ public class Storage {
         }
 
         return entry.value;
+    }
+
+    public static List<String> keys() {
+        return new ArrayList<>(data.keySet());
     }
 
     public static byte[] dumpRDB() {

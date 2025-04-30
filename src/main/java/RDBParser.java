@@ -37,7 +37,7 @@ public class RDBParser {
             } else if (opCode == 0xFD) { // Expiry time (seconds)
                 int expiry = readLittleEndianInt(dis);
                 System.out.println("Key with expiry: " + expiry);
-                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
+                int valueType = dis.readUnsignedByte();
                 if (valueType == 0x00) { // string
                     saveKeyValueToStorage(dis, TimeUnit.SECONDS.toMillis(expiry));
                 } else {
@@ -46,7 +46,7 @@ public class RDBParser {
             } else if (opCode == 0xFC) { // Expiry time (milliseconds)
                 long expiry = readLittleEndianLong(dis);
                 System.out.println("Key with expiry (ms): " + expiry);
-                int valueType = dis.readUnsignedByte();  // ⬅️ MUST read this byte
+                int valueType = dis.readUnsignedByte();
                 if (valueType == 0x00) {
                     saveKeyValueToStorage(dis, expiry);
                 } else {
