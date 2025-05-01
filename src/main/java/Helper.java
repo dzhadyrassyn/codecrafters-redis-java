@@ -44,9 +44,7 @@ public class Helper {
             }
 
             int length = Integer.parseInt(lengthLine.substring(1));
-            char[] buffer = new char[length];
-            InputStreamReader reader = new InputStreamReader(input, StandardCharsets.UTF_8);
-            reader.read(buffer, 0, length);
+            byte[] buffer = input.readNBytes(length);
 
             readLine(input); // consume trailing \r\n
             args[i] = new String(buffer);

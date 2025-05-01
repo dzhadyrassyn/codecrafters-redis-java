@@ -33,16 +33,4 @@ public class Main {
 
         Thread.currentThread().join();
     }
-
-//    private static RedisResponse handleKeyCommand(Config processConfig) {
-//
-//        try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(processConfig.rdbFile()))) {
-//            return new TextResponse(parseRDB(bis));
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        throw new RuntimeException("Cannot read keys");
-//    }
-
 }

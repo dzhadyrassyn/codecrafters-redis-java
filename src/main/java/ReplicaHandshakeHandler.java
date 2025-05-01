@@ -13,7 +13,7 @@ public class ReplicaHandshakeHandler {
 
         OutputStream output = context.getOutput();
 
-        String fullResync = Helper.formatBulkString("+FULLRESYNC " + Main.MASTER_REPL_ID + " 0");
+        String fullResync = Helper.formatBulkString("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + Main.MASTER_OFFSET);
 
         output.write(fullResync.getBytes(StandardCharsets.UTF_8));
 
