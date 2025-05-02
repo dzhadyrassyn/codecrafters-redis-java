@@ -27,25 +27,16 @@ public class ReplicationManager {
         System.out.println("Propagating to replicas: " + String.join(" ", commandArgs));
         replicaConnections.removeIf(ctx -> ctx.getSocket().isClosed());
 
+        System.out.println("REPLICAS SIZE: " + replicaConnections.size());
         for (ConnectionContext connectionContext : replicaConnections) {
             try {
                 OutputStream out = connectionContext.getOutput();
-                out.write(formatBulkArray(commandArgs).getBytes(StandardCharsets.UTF_8));
+                out.write(Helper.formatBulkArray(commandArgs).getBytes(StandardCharsets.UTF_8));
                 out.flush();
             } catch (IOException e) {
                 System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
                 removeReplica(connectionContext);
             }
         }
-    }
-
-    private static String formatBulkArray(String[] args) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("*").append(args.length).append("\r\n");
-        for (String arg : args) {
-            sb.append("$").append(arg.length()).append("\r\n");
-            sb.append(arg).append("\r\n");
-        }
-        return sb.toString();
     }
 }

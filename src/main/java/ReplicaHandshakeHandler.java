@@ -10,7 +10,7 @@ public class ReplicaHandshakeHandler {
     }
 
     public void handleNewReplica(ConnectionContext context) throws IOException {
-
+        System.out.println("handleNewReplica is called");
         OutputStream output = context.getOutput();
 
         String fullResync = Helper.formatBulkString("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + Main.MASTER_OFFSET);

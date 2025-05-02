@@ -1,4 +1,4 @@
-import java.util.List;
+import java.util.Arrays;
 
 public class CommandDispatcher {
 
@@ -9,6 +9,8 @@ public class CommandDispatcher {
     }
 
     public RedisResponse dispatch(String[] args) {
+        System.out.println("Processing command: " + Arrays.toString(args));
+
         if (args == null || args.length == 0) {
             return new TextResponse("-ERR Empty command\r\n");
         }
@@ -17,7 +19,7 @@ public class CommandDispatcher {
 
         return switch (command) {
             case "PING" -> new TextResponse("+PONG\r\n");
-            case "ECHO" -> new TextResponse(formatBulkString(args[1]));
+            case "ECHO" -> new TextResponse(Helper.formatBulkString(args[1]));
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args);
             case "CONFIG" -> handleConfigCommand(args);
@@ -30,6 +32,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleSetCommand(String[] args) {
+        System.out.println("Processing SET command");
         String key = args[1];
         String value = args[2];
         Storage.set(key, value);
@@ -40,7 +43,11 @@ public class CommandDispatcher {
         }
 
         ReplicationManager.propagateToReplicas(args);
-        return new TextResponse("+OK\r\n");
+        if (config.isMaster()) {
+            return new TextResponse("+OK\r\n");
+        }
+
+        return null;
     }
 
     private RedisResponse handleGetCommand(String[] args) {
@@ -48,23 +55,23 @@ public class CommandDispatcher {
         if (value == null) {
             return new TextResponse("$-1\r\n"); // Null bulk string
         }
-        return new TextResponse(formatBulkString(value));
+        return new TextResponse(Helper.formatBulkString(value));
     }
 
     private RedisResponse handleConfigCommand(String[] args) {
         if (args.length >= 3 && args[1].equalsIgnoreCase("GET")) {
             String configKey = args[2];
             if (configKey.equals("dir")) {
-                return new TextResponse(formatBulkArray(List.of(configKey, config.dir())));
+                return new TextResponse(Helper.formatBulkArray(configKey, config.dir()));
             } else if (configKey.equals("dbfilename")) {
-                return new TextResponse(formatBulkArray(List.of(configKey, config.dbfilename())));
+                return new TextResponse(Helper.formatBulkArray(configKey, config.dbfilename()));
             }
         }
-        return new TextResponse(formatBulkArray(List.of()));
+        return new TextResponse(Helper.formatBulkArray());
     }
 
     private RedisResponse handleKeyCommand() {
-        return new TextResponse(formatBulkArray(Storage.keys()));
+        return new TextResponse(Helper.formatBulkArray(Storage.keys().toArray(String[]::new)));
     }
 
     private RedisResponse handleInfoCommand(String[] args) {
@@ -81,7 +88,7 @@ public class CommandDispatcher {
                 Main.MASTER_REPL_ID,
                 Main.MASTER_OFFSET
         );
-        return new TextResponse(formatBulkString(replicationInfo));
+        return new TextResponse(Helper.formatBulkString(replicationInfo));
     }
 
     private RedisResponse handleReplConf() {
@@ -94,20 +101,5 @@ public class CommandDispatcher {
 
     private RedisResponse unknownCommand(String cmd) {
         return new TextResponse("-ERR unknown command '" + cmd.toUpperCase() + "'\r\n");
-    }
-
-    // Utility formatting methods
-    private static String formatBulkString(String value) {
-        return "$" + value.length() + "\r\n" + value + "\r\n";
-    }
-
-    private static String formatBulkArray(List<String> items) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("*").append(items.size()).append("\r\n");
-        for (String item : items) {
-            sb.append("$").append(item.length()).append("\r\n");
-            sb.append(item).append("\r\n");
-        }
-        return sb.toString();
     }
 }

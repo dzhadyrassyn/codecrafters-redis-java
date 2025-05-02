@@ -13,6 +13,7 @@ public class RequestHandler {
     }
 
     public void handleWithPreloadedCommand(ConnectionContext ctx, String[] preloadedCommand) {
+        System.out.println("Method handleWithPreloadedCommand is called");
         try {
             processOneCommand(ctx, preloadedCommand);
 
@@ -23,6 +24,7 @@ public class RequestHandler {
     }
 
     public void handle(ConnectionContext ctx) throws IOException {
+        System.out.println("Method handle is called");
         BufferedInputStream input = ctx.getInput();
 
         while (true) {
@@ -37,8 +39,11 @@ public class RequestHandler {
     }
 
     private void processOneCommand(ConnectionContext ctx, String[] args) throws IOException {
+        System.out.println("Method processOneCommand is called");
         RedisResponse response = dispatcher.dispatch(args);
-
+        if (response == null) {
+            return;
+        }
         if (response instanceof TextResponse(String data)) {
             ctx.getOutput().write(data.getBytes(StandardCharsets.UTF_8));
             ctx.getOutput().flush();
