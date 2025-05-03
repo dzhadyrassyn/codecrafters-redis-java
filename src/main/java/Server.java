@@ -36,8 +36,8 @@ public class Server {
 
     private void handleClientRequest(Socket socket, Config processConfig) throws IOException {
 
-        ConnectionContext context = new ConnectionContext(socket);
-        try {
+
+        try(ConnectionContext context = new ConnectionContext(socket)) {
 
             BufferedInputStream input = context.getInput();
 
@@ -55,9 +55,6 @@ public class Server {
             }
         } catch (IOException e) {
             System.err.println("Error handling client: " + e.getMessage());
-            try {
-                context.close();
-            } catch (IOException ignored) {}
         }
 
     }
