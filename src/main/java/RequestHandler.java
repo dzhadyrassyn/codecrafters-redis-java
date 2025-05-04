@@ -13,7 +13,6 @@ public class RequestHandler {
     }
 
     public void handleWithPreloadedCommand(ConnectionContext ctx, String[] preloadedCommand) {
-        System.out.println("Method handleWithPreloadedCommand is called");
         try {
             processOneCommand(ctx, preloadedCommand);
 
@@ -24,7 +23,6 @@ public class RequestHandler {
     }
 
     public void handle(ConnectionContext ctx) throws IOException {
-        System.out.println("Method handle is called");
         BufferedInputStream input = ctx.getInput();
 
         while (true) {

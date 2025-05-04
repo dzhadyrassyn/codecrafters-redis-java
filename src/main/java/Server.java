@@ -2,6 +2,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class Server {
 
@@ -41,18 +42,27 @@ public class Server {
 
             BufferedInputStream input = context.getInput();
 
-            String[] args = Helper.parseRespCommand(input);
+            while (true) {
+                String[] args = Helper.parseRespCommand(input);
+                if (args == null) {
+                    System.out.println("Client disconnected");
+                    break;
+                }
 
-            if (args == null) {
-                return; // Disconnected
+                System.out.println("Received request: " + String.join(" ", args));
+
+                String firstCommand = args[0].toUpperCase();
+                if (firstCommand.equals("PING")) {
+                    context.writeLine("+PONG");
+                } else if (firstCommand.equals("REPLCONF")) {
+                    context.writeLine("+OK");
+                } else if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
+                    new ReplicaHandshakeHandler(config).handleNewReplica(context);
+                } else {
+                    new RequestHandler(config).handleWithPreloadedCommand(context, args);
+                }
             }
 
-            String firstCommand = args[0].toUpperCase();
-            if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
-                new ReplicaHandshakeHandler(config).handleNewReplica(context);
-            } else {
-                new RequestHandler(config).handleWithPreloadedCommand(context, args);
-            }
         } catch (IOException e) {
             System.err.println("Error handling client: " + e.getMessage());
         }
