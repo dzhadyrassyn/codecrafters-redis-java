@@ -37,7 +37,6 @@ public class RequestHandler {
     }
 
     private void processOneCommand(ConnectionContext ctx, String[] args) throws IOException {
-        System.out.println("Method processOneCommand is called");
         RedisResponse response = dispatcher.dispatch(args);
         if (response == null) {
             return;
