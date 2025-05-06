@@ -1,3 +1,5 @@
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 public class Main {
@@ -10,6 +12,8 @@ public class Main {
         System.out.println("Loading configuration...");
         Config config = Config.fromArgs(args);
         System.out.println("Configuration loaded: " + config);
+
+        parseInitialRDBFile(config);
 
         Server server = new Server(config);
         Thread.startVirtualThread(() -> {
@@ -32,5 +36,17 @@ public class Main {
         }
 
         Thread.currentThread().join();
+    }
+
+    private static void parseInitialRDBFile(Config config) {
+
+        if (config.rdbFile() != null && config.rdbFile().exists()) {
+            try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(config.rdbFile()))) {
+                RDBParser.parseRDB(bis);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException("Cannot read keys");
+            }
+        }
     }
 }

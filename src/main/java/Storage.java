@@ -39,7 +39,7 @@ public class Storage {
                         }
                     }
                     if (removed > 0) {
-                        System.out.println("🧹 Cleaned up " + removed + " expired keys");
+                        System.out.println("Cleaned up " + removed + " expired keys");
                     }
 
                     // Sleep for 10 seconds
