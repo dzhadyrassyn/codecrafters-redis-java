@@ -33,6 +33,11 @@ public class ConnectionContext implements Closeable {
         output.flush();
     }
 
+    public void write(String line) throws IOException {
+        output.write(line.getBytes(StandardCharsets.UTF_8));
+        output.flush();
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

@@ -16,10 +16,11 @@ public class ReplicaClient {
         int port = config.masterPort();
 
         Socket socket = new Socket(host, port);
+        ConnectionContext context = new ConnectionContext(socket);
         System.out.println("Connected to master " + host + ":" + port);
 
-        OutputStream output = socket.getOutputStream();
-        InputStream input = socket.getInputStream();
+        OutputStream output = context.getOutput();
+        InputStream input = context.getInput();
 
         sendCommand(output, "ping");
         System.out.println("Response from master is " + Helper.readLine(input));
@@ -59,7 +60,12 @@ public class ReplicaClient {
                 break;
             }
 
+
             commandDispatcher.dispatch(args);
+            String commandFromMaster = String.join(" ", args);
+            if (commandFromMaster.equals("REPLCONF GETACK *")) {
+                context.write(Helper.formatBulkArray("REPLCONF", "ACK", "0"));
+            }
         }
 
     }
