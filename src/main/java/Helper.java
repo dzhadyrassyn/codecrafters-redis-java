@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 public class Helper {
 
     public static String readLine(InputStream input) throws IOException {
+
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         int b;
         while ((b = input.read()) != -1) {
@@ -22,6 +23,7 @@ public class Helper {
     }
 
     public static String[] parseRespCommand(InputStream input) throws IOException {
+
         String firstLine = readLine(input);
 
         if (firstLine == null || firstLine.isEmpty()) {
