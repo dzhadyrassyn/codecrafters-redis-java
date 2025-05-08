@@ -52,25 +52,30 @@ public class ReplicaClient {
         System.out.println("Finished initial RDB sync");
 
         CommandDispatcher commandDispatcher = new CommandDispatcher(config);
+
+        long ackOffset = 0;
         while (true) {
-            String[] args = Helper.parseRespCommand(input);
+            CountingInputStream counter = new CountingInputStream(input);
+            String[] args = Helper.parseRespCommand(counter);
+
             System.out.println("Replica received: " + Arrays.toString(args));
             if (args == null) {
                 System.out.println("Master closed connection");
                 break;
             }
 
-
             commandDispatcher.dispatch(args);
             String commandFromMaster = String.join(" ", args);
             if (commandFromMaster.equals("REPLCONF GETACK *")) {
-                context.write(Helper.formatBulkArray("REPLCONF", "ACK", "0"));
+                context.write(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ackOffset)));
             }
+            ackOffset += counter.getCount();
         }
 
     }
 
     private static void sendCommand(OutputStream out, String... args) throws IOException {
+
         System.out.println("Sending command to master: " + Arrays.toString(args));
         String sendCommand = Helper.formatBulkArray(args);
         out.write(sendCommand.getBytes(StandardCharsets.UTF_8));

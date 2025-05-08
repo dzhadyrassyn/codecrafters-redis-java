@@ -35,4 +35,9 @@ public class CountingInputStream extends FilterInputStream {
         }
         return result;
     }
+
+    public long getCount() {
+        return count;
+    }
+
 }
