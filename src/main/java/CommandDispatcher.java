@@ -27,8 +27,13 @@ public class CommandDispatcher {
             case "INFO" -> handleInfoCommand(args);
             case "REPLCONF" -> handleReplConf();
             case "PSYNC" -> handlePSync();
+            case "WAIT" -> handleWait();
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleWait() {
+        return new TextResponse(":0\r\n");
     }
 
     private RedisResponse handleSetCommand(String[] args) {
