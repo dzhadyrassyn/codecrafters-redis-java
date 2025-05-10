@@ -33,7 +33,9 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleWait() {
-        return new TextResponse(":0\r\n");
+
+        int replicaCount = ReplicationManager.getReplicaCount();
+        return new TextResponse(String.format(":%d\r\n", replicaCount));
     }
 
     private RedisResponse handleSetCommand(String[] args) {

@@ -39,4 +39,8 @@ public class ReplicationManager {
             }
         }
     }
+
+    public static int getReplicaCount() {
+        return replicaConnections.size();
+    }
 }
