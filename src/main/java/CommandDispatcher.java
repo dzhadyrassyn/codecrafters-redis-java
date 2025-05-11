@@ -39,6 +39,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleSetCommand(String[] args) {
+
         System.out.println("Processing SET command");
         String key = args[1];
         String value = args[2];

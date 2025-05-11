@@ -12,6 +12,7 @@ public class ReplicaClient {
     }
 
     public void connectToMaster() throws IOException {
+
         String host = config.masterHost();
         int port = config.masterPort();
 
@@ -48,7 +49,6 @@ public class ReplicaClient {
         byte[] rdbBytes = input.readNBytes(rdbLength);
         BufferedInputStream rdbStream = new BufferedInputStream(new ByteArrayInputStream(rdbBytes));
         RDBParser.parseRDB(rdbStream);
-
         System.out.println("Finished initial RDB sync");
 
         CommandDispatcher commandDispatcher = new CommandDispatcher(config);
