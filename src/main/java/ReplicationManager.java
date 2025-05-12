@@ -31,8 +31,12 @@ public class ReplicationManager {
         for (ConnectionContext connectionContext : replicaConnections) {
             try {
                 OutputStream out = connectionContext.getOutput();
-                out.write(Helper.formatBulkArray(commandArgs).getBytes(StandardCharsets.UTF_8));
+                String command = Helper.formatBulkArray(commandArgs);
+                byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
+                out.write(bytes);
                 out.flush();
+
+                Main.repl_offset.addAndGet(bytes.length);
             } catch (IOException e) {
                 System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
                 removeReplica(connectionContext);

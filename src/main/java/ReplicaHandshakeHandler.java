@@ -13,7 +13,7 @@ public class ReplicaHandshakeHandler {
         System.out.println("handleNewReplica is called");
         OutputStream output = context.getOutput();
 
-        output.write(("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + Main.MASTER_OFFSET + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + 0 + "\r\n").getBytes(StandardCharsets.UTF_8));
         byte[] rdbBytes = Storage.dumpRDB();
         output.write(("$" + rdbBytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
         output.write(rdbBytes);

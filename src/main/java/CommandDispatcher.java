@@ -94,7 +94,7 @@ public class CommandDispatcher {
             """.formatted(
                 config.isMaster() ? "master" : "slave",
                 Main.MASTER_REPL_ID,
-                Main.MASTER_OFFSET
+                0
         );
         return new TextResponse(Helper.formatBulkString(replicationInfo));
     }
@@ -104,7 +104,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handlePSync() {
-        return new RDBSyncResponse("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + Main.MASTER_OFFSET + "\r\n", Storage.dumpRDB());
+        return new RDBSyncResponse("+FULLRESYNC " + Main.MASTER_REPL_ID + " " + 0 + "\r\n", Storage.dumpRDB());
     }
 
     private RedisResponse unknownCommand(String cmd) {

@@ -1,11 +1,12 @@
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Main {
 
     public static final String MASTER_REPL_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
-    public static final String MASTER_OFFSET = "0";
+    public static final AtomicLong repl_offset = new AtomicLong(0);
 
     public static void main(String[] args) throws InterruptedException {
 
