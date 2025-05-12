@@ -9,6 +9,7 @@ public class ConnectionContext implements Closeable {
     private final Socket socket;
     private final BufferedInputStream input;
     private final OutputStream output;
+    private volatile long acknowledgedOffset = 0;
 
     public ConnectionContext(Socket socket) throws IOException {
         this.socket = socket;
@@ -36,6 +37,14 @@ public class ConnectionContext implements Closeable {
     public void write(String line) throws IOException {
         output.write(line.getBytes(StandardCharsets.UTF_8));
         output.flush();
+    }
+
+    public long getAcknowledgedOffset() {
+        return acknowledgedOffset;
+    }
+
+    public void setAcknowledgedOffset(long acknowledgedOffset) {
+        this.acknowledgedOffset = acknowledgedOffset;
     }
 
     @Override
