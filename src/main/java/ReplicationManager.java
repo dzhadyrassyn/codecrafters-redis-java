@@ -43,4 +43,15 @@ public class ReplicationManager {
     public static int getReplicaCount() {
         return replicaConnections.size();
     }
+
+    public static int countReplicasAcknowledged(long offset) {
+
+        int count = 0;
+        for (ConnectionContext connectionContext : replicaConnections) {
+            if (connectionContext.getAcknowledgedOffset() >= offset) {
+                count++;
+            }
+        }
+        return count;
+    }
 }
