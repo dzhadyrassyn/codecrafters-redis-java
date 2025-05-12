@@ -54,6 +54,12 @@ public class Server {
                 if (firstCommand.equals("PING")) {
                     context.writeLine("+PONG");
                 } else if (firstCommand.equals("REPLCONF")) {
+                    if (args.length == 3 && args[1].equals("ACK")) {
+                        long offset = Long.parseLong(args[2]);
+                        context.setAcknowledgedOffset(offset);
+                        System.out.println("Replica " + context.getSocket().getRemoteSocketAddress()
+                                + " acknowledged offset: " + offset);
+                    }
                     context.writeLine("+OK");
                 } else if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
                     new ReplicaHandshakeHandler(config).handleNewReplica(context);
