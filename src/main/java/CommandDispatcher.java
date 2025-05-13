@@ -27,15 +27,39 @@ public class CommandDispatcher {
             case "INFO" -> handleInfoCommand(args);
             case "REPLCONF" -> handleReplConf();
             case "PSYNC" -> handlePSync();
-            case "WAIT" -> handleWait();
+            case "WAIT" -> handleWait(args);
             default -> unknownCommand(command);
         };
     }
 
-    private RedisResponse handleWait() {
+    private RedisResponse handleWait(String[] args) {
 
-        int replicaCount = ReplicationManager.getReplicaCount();
-        return new TextResponse(String.format(":%d\r\n", replicaCount));
+        System.out.println("Waiting for command: " + Arrays.toString(args));
+        long expectedReplicas = Long.parseLong(args[1]);
+        long expireTime = Long.parseLong(args[2]);
+
+        long targetOffset = Main.repl_offset.get();
+        System.out.println("Target offset: " + targetOffset);
+        long deadline = System.currentTimeMillis() + expireTime;
+        int acknowledged = 0;
+
+        while(System.currentTimeMillis() < deadline) {
+            acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
+
+            if (acknowledged >= expectedReplicas) {
+                break;
+            }
+
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        System.out.println("Acknowledged: " + acknowledged);
+        return new TextResponse(String.format(":%d\r\n", acknowledged));
     }
 
     private RedisResponse handleSetCommand(String[] args) {

@@ -16,6 +16,10 @@ public class Main {
 
         parseInitialRDBFile(config);
 
+        if (config.isMaster()) {
+            ReplicationManager.startBackgroundPinger();
+        }
+
         Server server = new Server(config);
         Thread.startVirtualThread(() -> {
             try {

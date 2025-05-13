@@ -3,10 +3,14 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ReplicationManager {
 
     private static final List<ConnectionContext> replicaConnections = new CopyOnWriteArrayList<>();
+    private static final ScheduledExecutorService pinger = Executors.newSingleThreadScheduledExecutor();
 
     public static void addReplica(ConnectionContext context) {
         replicaConnections.add(context);
@@ -48,10 +52,31 @@ public class ReplicationManager {
         return replicaConnections.size();
     }
 
+    public static void startBackgroundPinger() {
+        pinger.scheduleAtFixedRate(() -> {
+            for (ConnectionContext connectionContext : replicaConnections) {
+                if (Main.repl_offset.get() == 0) {
+                    return;
+                }
+                OutputStream output = connectionContext.getOutput();
+                try {
+                    output.write(Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8));
+                    output.flush();
+                } catch (IOException e) {
+                    System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
+                    removeReplica(connectionContext);
+                }
+
+            }
+        }, 0, 100, TimeUnit.MILLISECONDS);
+    }
+
     public static int countReplicasAcknowledged(long offset) {
 
         int count = 0;
+        System.out.println("Target offset while comparing: " + offset);
         for (ConnectionContext connectionContext : replicaConnections) {
+            System.out.println("Comparing replica: " + connectionContext.getSocket().getRemoteSocketAddress() + " offset: " + connectionContext.getAcknowledgedOffset());
             if (connectionContext.getAcknowledgedOffset() >= offset) {
                 count++;
             }
