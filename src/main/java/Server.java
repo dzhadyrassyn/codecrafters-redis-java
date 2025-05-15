@@ -36,7 +36,6 @@ public class Server {
 
     private void handleClientRequest(Socket socket, Config processConfig) throws IOException {
 
-
         try(ConnectionContext context = new ConnectionContext(socket)) {
 
             BufferedInputStream input = context.getInput();

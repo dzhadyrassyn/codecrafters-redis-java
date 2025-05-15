@@ -28,55 +28,73 @@ public class ReplicationManager {
     }
 
     public static void propagateToReplicas(String[] commandArgs) {
+
         System.out.println("Propagating to replicas: " + String.join(" ", commandArgs));
         replicaConnections.removeIf(ctx -> ctx.getSocket().isClosed());
-
         System.out.println("REPLICAS SIZE: " + replicaConnections.size());
+
+        String command = Helper.formatBulkArray(commandArgs);
+        byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
+
         for (ConnectionContext connectionContext : replicaConnections) {
             try {
                 OutputStream out = connectionContext.getOutput();
-                String command = Helper.formatBulkArray(commandArgs);
-                byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
                 out.write(bytes);
                 out.flush();
-
-                Main.repl_offset.addAndGet(bytes.length);
             } catch (IOException e) {
                 System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
                 removeReplica(connectionContext);
             }
         }
+
+        Main.repl_offset.addAndGet(bytes.length);
+        System.out.println("Updating main replica offset: " + Main.repl_offset);
+
+//        for (ConnectionContext connectionContext : replicaConnections) {
+//            if (Main.repl_offset.get() == 0) {
+//                return;
+//            }
+//            OutputStream output = connectionContext.getOutput();
+//            try {
+//                output.write(Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8));
+//                output.flush();
+//            } catch (IOException e) {
+//                System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
+//                removeReplica(connectionContext);
+//            }
+//
+//        }
     }
 
     public static int getReplicaCount() {
         return replicaConnections.size();
     }
 
-    public static void startBackgroundPinger() {
-        pinger.scheduleAtFixedRate(() -> {
-            for (ConnectionContext connectionContext : replicaConnections) {
-                if (Main.repl_offset.get() == 0) {
-                    return;
-                }
-                OutputStream output = connectionContext.getOutput();
-                try {
-                    output.write(Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8));
-                    output.flush();
-                } catch (IOException e) {
-                    System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
-                    removeReplica(connectionContext);
-                }
-
-            }
-        }, 0, 100, TimeUnit.MILLISECONDS);
-    }
+//    public static void startBackgroundPinger() {
+//        pinger.scheduleAtFixedRate(() -> {
+//            for (ConnectionContext connectionContext : replicaConnections) {
+//                if (Main.repl_offset.get() == 0) {
+//                    return;
+//                }
+//                OutputStream output = connectionContext.getOutput();
+//                try {
+//                    output.write(Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8));
+//                    output.flush();
+//                } catch (IOException e) {
+//                    System.err.println("Error writing to replica " + connectionContext.getSocket().getRemoteSocketAddress());
+//                    removeReplica(connectionContext);
+//                }
+//
+//            }
+//        }, 0, 100, TimeUnit.MILLISECONDS);
+//    }
 
     public static int countReplicasAcknowledged(long offset) {
 
         int count = 0;
-        System.out.println("Target offset while comparing: " + offset);
+//        System.out.println("Target offset while comparing: " + offset);
         for (ConnectionContext connectionContext : replicaConnections) {
-            System.out.println("Comparing replica: " + connectionContext.getSocket().getRemoteSocketAddress() + " offset: " + connectionContext.getAcknowledgedOffset());
+//            System.out.println("Comparing replica: " + connectionContext.getSocket().getRemoteSocketAddress() + " offset: " + connectionContext.getAcknowledgedOffset());
             if (connectionContext.getAcknowledgedOffset() >= offset) {
                 count++;
             }
