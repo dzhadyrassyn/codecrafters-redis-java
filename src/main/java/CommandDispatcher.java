@@ -41,8 +41,8 @@ public class CommandDispatcher {
         long targetOffset = Main.repl_offset.get();
         System.out.println("Target offset: " + targetOffset);
         long deadline = System.currentTimeMillis() + expireTime;
-        int acknowledged = 0;
 
+        int acknowledged = 0;
         while(System.currentTimeMillis() < deadline) {
             acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
@@ -75,6 +75,7 @@ public class CommandDispatcher {
         }
 
         ReplicationManager.propagateToReplicas(args);
+        ReplicationManager.sendGetAckToReplicas();
         if (config.isMaster()) {
             return new TextResponse("+OK\r\n");
         }

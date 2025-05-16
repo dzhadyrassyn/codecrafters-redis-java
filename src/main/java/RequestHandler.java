@@ -1,6 +1,7 @@
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 public class RequestHandler {
 
@@ -18,7 +19,7 @@ public class RequestHandler {
 
             handle(ctx);
         } catch (IOException e) {
-            System.err.println("Error handling client: " + e.getMessage());
+            System.err.println("Error handling client in handleWithPreloadedCommand: " + e.getMessage());
         }
     }
 
@@ -37,6 +38,8 @@ public class RequestHandler {
     }
 
     private void processOneCommand(ConnectionContext ctx, String[] args) throws IOException {
+
+        System.out.println("processOneCommand command: " + Arrays.toString(args));
         RedisResponse response = dispatcher.dispatch(args);
         if (response == null) {
             return;

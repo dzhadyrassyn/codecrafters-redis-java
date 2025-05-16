@@ -23,7 +23,7 @@ public class Server {
                 System.out.println("New connection from " + socket.getRemoteSocketAddress());
 
                 Thread.startVirtualThread(() -> {
-                    try (socket) {
+                    try {
                         handleClientRequest(socket, config);
                     } catch (IOException ex) {
                         System.err.println("Error handling request " + ex.getMessage());
@@ -68,8 +68,7 @@ public class Server {
             }
 
         } catch (IOException e) {
-            System.err.println("Error handling client: " + e.getMessage());
+            System.err.println("Error handling client in handleClientRequest: " + e.getMessage());
         }
-
     }
 }
