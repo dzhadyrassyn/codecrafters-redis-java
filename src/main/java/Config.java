@@ -10,6 +10,7 @@ public record Config(
         File rdbFile
 ) {
     public static Config fromArgs(String[] args) {
+
         int replicaPort = 6380;
         String masterHost = null;
         int masterPort = 6379;

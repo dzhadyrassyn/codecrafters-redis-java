@@ -9,6 +9,7 @@ public class CommandDispatcher {
     }
 
     public RedisResponse dispatch(String[] args) {
+
         System.out.println("Processing command: " + Arrays.toString(args));
 
         if (args == null || args.length == 0) {
@@ -84,6 +85,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleGetCommand(String[] args) {
+
         String value = Storage.get(args[1]);
         if (value == null) {
             return new TextResponse("$-1\r\n"); // Null bulk string
@@ -92,6 +94,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleConfigCommand(String[] args) {
+
         if (args.length >= 3 && args[1].equalsIgnoreCase("GET")) {
             String configKey = args[2];
             if (configKey.equals("dir")) {
@@ -108,6 +111,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleInfoCommand(String[] args) {
+
         if (args.length < 2 || !args[1].equalsIgnoreCase("replication")) {
             return new TextResponse("+OK\r\n");
         }

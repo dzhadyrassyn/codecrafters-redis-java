@@ -14,6 +14,7 @@ public class RequestHandler {
     }
 
     public void handleWithPreloadedCommand(ConnectionContext ctx, String[] preloadedCommand) {
+
         try {
             processOneCommand(ctx, preloadedCommand);
 
@@ -24,6 +25,7 @@ public class RequestHandler {
     }
 
     public void handle(ConnectionContext ctx) throws IOException {
+
         BufferedInputStream input = ctx.getInput();
 
         while (true) {
