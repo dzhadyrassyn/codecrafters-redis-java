@@ -10,6 +10,7 @@ public class RDBParser {
 
 
     public static void parseRDB(BufferedInputStream bis) throws IOException {
+
         DataInputStream dis = new DataInputStream(bis);
 
         String magicString = readMagicString(dis);
@@ -63,6 +64,7 @@ public class RDBParser {
     }
 
     private static void saveKeyValueToStorage(DataInputStream dis, long expiry) throws IOException {
+
         String key = readString(dis);
         String value = readString(dis);
         System.out.println("Key: " + key + ", Value: " + value);
@@ -82,24 +84,28 @@ public class RDBParser {
     }
 
     private static String readVersion(DataInputStream dis) throws IOException {
+
         byte[] versionBytes = new byte[4];
         dis.readFully(versionBytes);
         return new String(versionBytes, StandardCharsets.UTF_8);
     }
 
     private static int readLittleEndianInt(DataInputStream dis) throws IOException {
+
         byte[] bytes = new byte[4];
         dis.readFully(bytes);
         return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
     private static long readLittleEndianLong(DataInputStream dis) throws IOException {
+
         byte[] bytes = new byte[8];
         dis.readFully(bytes);
         return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
     }
 
     private static String readString(DataInputStream dis) throws IOException {
+
         int firstByte = dis.readUnsignedByte();
 
         if ((firstByte & 0xC0) == 0x00) {
@@ -136,6 +142,7 @@ public class RDBParser {
     }
 
     private static int readLength(DataInputStream dis) throws IOException {
+
         int first = dis.readUnsignedByte();
         if ((first & 0xC0) == 0x00) {
             return first & 0x3F;
