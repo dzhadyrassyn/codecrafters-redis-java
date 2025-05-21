@@ -43,9 +43,11 @@ public class RequestHandler {
 
         System.out.println("processOneCommand command: " + Arrays.toString(args));
         RedisResponse response = dispatcher.dispatch(args);
+        System.out.println("is the response here : " + response);
         if (response == null) {
             return;
         }
+        System.out.println("Response in processOneCommand: " + response);
         if (response instanceof TextResponse(String data)) {
             ctx.getOutput().write(data.getBytes(StandardCharsets.UTF_8));
             ctx.getOutput().flush();

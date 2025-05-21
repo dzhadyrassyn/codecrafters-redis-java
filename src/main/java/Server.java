@@ -58,8 +58,11 @@ public class Server {
                         context.setAcknowledgedOffset(offset);
                         System.out.println("Replica " + context.getSocket().getRemoteSocketAddress()
                                 + " acknowledged offset: " + offset);
+//                        context.writeLine(Helper.formatBulkString("OK"));
+                    } else {
+                        context.writeLine("+OK");
                     }
-                    context.writeLine("+OK");
+
                 } else if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
                     new ReplicaHandshakeHandler(config).handleNewReplica(context);
                 } else {

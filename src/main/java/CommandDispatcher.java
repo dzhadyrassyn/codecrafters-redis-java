@@ -26,7 +26,7 @@ public class CommandDispatcher {
             case "CONFIG" -> handleConfigCommand(args);
             case "KEYS" -> handleKeyCommand();
             case "INFO" -> handleInfoCommand(args);
-            case "REPLCONF" -> handleReplConf();
+            case "REPLCONF" -> handleReplConf(args);
             case "PSYNC" -> handlePSync();
             case "WAIT" -> handleWait(args);
             default -> unknownCommand(command);
@@ -37,27 +37,24 @@ public class CommandDispatcher {
 
         System.out.println("Waiting for command: " + Arrays.toString(args));
         long expectedReplicas = Long.parseLong(args[1]);
+        if (expectedReplicas == 0) {
+            return new TextResponse(String.format(":%d\r\n", 0));
+        }
         long expireTime = Long.parseLong(args[2]);
 
+        ReplicationManager.sendGetAckToReplicas();
+
         long targetOffset = Main.repl_offset.get();
-        System.out.println("Target offset: " + targetOffset);
-        long deadline = System.currentTimeMillis() + expireTime;
 
-        int acknowledged = 0;
-        while(System.currentTimeMillis() < deadline) {
-            acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
-
-            if (acknowledged >= expectedReplicas) {
-                break;
-            }
-
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+        try {
+            Thread.sleep(expireTime);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
+
+        System.out.println("Target offset: " + targetOffset);
+
+        int acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
         System.out.println("Acknowledged: " + acknowledged);
         return new TextResponse(String.format(":%d\r\n", acknowledged));
@@ -76,8 +73,9 @@ public class CommandDispatcher {
         }
 
         ReplicationManager.propagateToReplicas(args);
-        ReplicationManager.sendGetAckToReplicas();
         if (config.isMaster()) {
+            System.out.println("config: " + config);
+            System.out.println("is it here in handleSet?");
             return new TextResponse("+OK\r\n");
         }
 
@@ -113,6 +111,7 @@ public class CommandDispatcher {
     private RedisResponse handleInfoCommand(String[] args) {
 
         if (args.length < 2 || !args[1].equalsIgnoreCase("replication")) {
+            System.out.println("Is it here in handleInfo?");
             return new TextResponse("+OK\r\n");
         }
         String replicationInfo = """
@@ -128,7 +127,13 @@ public class CommandDispatcher {
         return new TextResponse(Helper.formatBulkString(replicationInfo));
     }
 
-    private RedisResponse handleReplConf() {
+    private RedisResponse handleReplConf(String[] args) {
+
+        if (args.length == 3 && args[1].equals("GETACK") && args[2].equals("*")) {
+            return new TextResponse(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(100)));
+        }
+
+        System.out.println("Is it replconf?");
         return new TextResponse("+OK\r\n");
     }
 

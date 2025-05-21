@@ -35,6 +35,7 @@ public class ReplicationManager {
 
         for (ConnectionContext connectionContext : replicaConnections) {
             try {
+                System.out.println("Sending " + command + " to: " + connectionContext.getSocket().getRemoteSocketAddress());
                 OutputStream out = connectionContext.getOutput();
                 out.write(bytes);
                 out.flush();
