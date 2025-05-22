@@ -28,3 +28,12 @@ Attempt: locally reproduce the issue
 Reproduced locally, found an issue, works fine locally, but not passing test?
 
 Removed writing OK for REPLCONF ACK in server, passed the test! We have the progress. Another test is failing, that's need to be fixed next time
+
+### 22.05.2025
+#YD3 test case if failing 
+
+Target: Fix static wait command processing, cause now it only sets 50 as ack value
+
+Result: fixed, test is finally passing!!! 
+
+For the next: I would like to refactor the code, remove unnecessary logs

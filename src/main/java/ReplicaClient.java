@@ -64,13 +64,11 @@ public class ReplicaClient {
                 break;
             }
 
-            commandDispatcher.dispatch(args);
-//            String commandFromMaster = String.join(" ", args);
-//            if (commandFromMaster.equals("REPLCONF GETACK *")) {
-//                context.write(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ackOffset)));
-//            } else {
-//
-//            }
+            commandDispatcher.dispatch(args, ackOffset);
+            String commandFromMaster = String.join(" ", args);
+            if (commandFromMaster.equals("REPLCONF GETACK *")) {
+                context.write(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ackOffset)));
+            }
             ackOffset += counter.getCount();
         }
 

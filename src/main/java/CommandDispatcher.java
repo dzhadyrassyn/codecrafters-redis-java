@@ -8,7 +8,7 @@ public class CommandDispatcher {
         this.config = config;
     }
 
-    public RedisResponse dispatch(String[] args) {
+    public RedisResponse dispatch(String[] args, long ack) {
 
         System.out.println("Processing command: " + Arrays.toString(args));
 
@@ -26,7 +26,7 @@ public class CommandDispatcher {
             case "CONFIG" -> handleConfigCommand(args);
             case "KEYS" -> handleKeyCommand();
             case "INFO" -> handleInfoCommand(args);
-            case "REPLCONF" -> handleReplConf(args);
+            case "REPLCONF" -> handleReplConf(args, ack);
             case "PSYNC" -> handlePSync();
             case "WAIT" -> handleWait(args);
             default -> unknownCommand(command);
@@ -127,10 +127,10 @@ public class CommandDispatcher {
         return new TextResponse(Helper.formatBulkString(replicationInfo));
     }
 
-    private RedisResponse handleReplConf(String[] args) {
+    private RedisResponse handleReplConf(String[] args, long ack) {
 
         if (args.length == 3 && args[1].equals("GETACK") && args[2].equals("*")) {
-            return new TextResponse(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(100)));
+            return new TextResponse(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ack)));
         }
 
         System.out.println("Is it replconf?");
