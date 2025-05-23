@@ -35,7 +35,6 @@ public class ReplicationManager {
 
         for (ConnectionContext connectionContext : replicaConnections) {
             try {
-                System.out.println("Sending " + command + " to: " + connectionContext.getSocket().getRemoteSocketAddress());
                 OutputStream out = connectionContext.getOutput();
                 out.write(bytes);
                 out.flush();
@@ -46,7 +45,7 @@ public class ReplicationManager {
         }
 
         Main.repl_offset.addAndGet(bytes.length);
-        System.out.println("Updating main replica offset: " + Main.repl_offset);
+        System.out.println("Updating main replica offset after propagating to replicas: " + Main.repl_offset);
     }
 
     public static int getReplicaCount() {
@@ -55,6 +54,7 @@ public class ReplicationManager {
 
     public static void sendGetAckToReplicas() {
 
+        System.out.println("Sending ack to replicas");
         byte[] getack = Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8);
 
         for (ConnectionContext connectionContext : replicaConnections) {
@@ -63,7 +63,6 @@ public class ReplicationManager {
             }
             CompletableFuture.runAsync(() -> {
                 OutputStream output = connectionContext.getOutput();
-                System.out.println("Sending ack to replica: " + connectionContext.getSocket().getRemoteSocketAddress());
                 try {
                     output.write(getack);
                     output.flush();
@@ -78,9 +77,7 @@ public class ReplicationManager {
     public static int countReplicasAcknowledged(long offset) {
 
         int count = 0;
-        System.out.println("Target offset while comparing: " + offset);
         for (ConnectionContext connectionContext : replicaConnections) {
-            System.out.println("Comparing replica: " + connectionContext.getSocket().getRemoteSocketAddress() + " offset: " + connectionContext.getAcknowledgedOffset());
             if (connectionContext.getAcknowledgedOffset() >= offset) {
                 count++;
             }

@@ -37,3 +37,6 @@ Target: Fix static wait command processing, cause now it only sets 50 as ack val
 Result: fixed, test is finally passing!!! 
 
 For the next: I would like to refactor the code, remove unnecessary logs
+
+### 23.05.2025
+Target: remove logs, refactor

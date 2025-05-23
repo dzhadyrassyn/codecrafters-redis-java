@@ -35,7 +35,6 @@ public class CommandDispatcher {
 
     private RedisResponse handleWait(String[] args) {
 
-        System.out.println("Waiting for command: " + Arrays.toString(args));
         long expectedReplicas = Long.parseLong(args[1]);
         if (expectedReplicas == 0) {
             return new TextResponse(String.format(":%d\r\n", 0));
@@ -51,8 +50,6 @@ public class CommandDispatcher {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-
-        System.out.println("Target offset: " + targetOffset);
 
         int acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
@@ -74,8 +71,6 @@ public class CommandDispatcher {
 
         ReplicationManager.propagateToReplicas(args);
         if (config.isMaster()) {
-            System.out.println("config: " + config);
-            System.out.println("is it here in handleSet?");
             return new TextResponse("+OK\r\n");
         }
 
