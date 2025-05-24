@@ -10,6 +10,7 @@ public class ReplicationManager {
     private static final List<ConnectionContext> replicaConnections = new CopyOnWriteArrayList<>();
 
     public static void addReplica(ConnectionContext context) {
+
         replicaConnections.add(context);
         System.out.println("Added replica: " + context.getSocket().getRemoteSocketAddress());
     }

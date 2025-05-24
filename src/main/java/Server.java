@@ -2,6 +2,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 
 public class Server {
 
@@ -10,6 +11,8 @@ public class Server {
     public Server(Config config) {
         this.config = config;
     }
+
+    private static final List<String> replicaHandshakeCommands = List.of("PING", "REPLCONF", "PSYNC", "SYNC");
 
     public void start() throws IOException {
 
@@ -24,7 +27,7 @@ public class Server {
 
                 Thread.startVirtualThread(() -> {
                     try {
-                        handleClientRequest(socket, config);
+                        handleClientRequest(socket);
                     } catch (IOException ex) {
                         System.err.println("Error handling request " + ex.getMessage());
                         ex.printStackTrace();
@@ -34,7 +37,9 @@ public class Server {
         }
     }
 
-    private void handleClientRequest(Socket socket, Config processConfig) throws IOException {
+    private void handleClientRequest(Socket socket) throws IOException {
+
+        CommandDispatcher commandDispatcher = new CommandDispatcher(config);
 
         try(ConnectionContext context = new ConnectionContext(socket)) {
 
@@ -50,26 +55,12 @@ public class Server {
                 System.out.println("Received request: " + String.join(" ", args));
 
                 String firstCommand = args[0].toUpperCase();
-                if (firstCommand.equals("PING")) {
-                    context.writeLine("+PONG");
-                } else if (firstCommand.equals("REPLCONF")) {
-                    if (args.length == 3 && args[1].equals("ACK")) {
-                        long offset = Long.parseLong(args[2]);
-                        context.setAcknowledgedOffset(offset);
-                        System.out.println("Replica " + context.getSocket().getRemoteSocketAddress()
-                                + " acknowledged offset: " + offset);
-//                        context.writeLine(Helper.formatBulkString("OK"));
-                    } else {
-                        context.writeLine("+OK");
-                    }
-
-                } else if (firstCommand.equals("PSYNC") || firstCommand.equals("SYNC")) {
-                    new ReplicaHandshakeHandler(config).handleNewReplica(context);
+                if (replicaHandshakeCommands.contains(firstCommand)) {
+                    commandDispatcher.handleReplicaHandshakeCommand(args, context);
                 } else {
                     new RequestHandler(config).handleWithPreloadedCommand(context, args);
                 }
             }
-
         } catch (IOException e) {
             System.err.println("Error handling client in handleClientRequest: " + e.getMessage());
         }

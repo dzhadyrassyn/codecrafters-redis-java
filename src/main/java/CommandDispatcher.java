@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.Arrays;
 
 public class CommandDispatcher {
@@ -138,5 +139,24 @@ public class CommandDispatcher {
 
     private RedisResponse unknownCommand(String cmd) {
         return new TextResponse("-ERR unknown command '" + cmd.toUpperCase() + "'\r\n");
+    }
+
+    public void handleReplicaHandshakeCommand(String[] args, ConnectionContext context) throws IOException {
+
+        String command = args[0].toUpperCase();
+        switch (command) {
+            case "PING" -> context.writeLine("+PONG");
+            case "REPLCONF" -> {
+                if (args.length == 3 && args[1].equals("ACK")) {
+                    long offset = Long.parseLong(args[2]);
+                    context.setAcknowledgedOffset(offset);
+                    System.out.println("Replica " + context.getSocket().getRemoteSocketAddress()
+                            + " acknowledged offset: " + offset);
+                } else {
+                    context.writeLine("+OK");
+                }
+            }
+            case "PSYNC", "SYNC" -> new ReplicaHandshakeHandler(config).handleNewReplica(context);
+        }
     }
 }

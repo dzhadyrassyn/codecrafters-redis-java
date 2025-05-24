@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -8,6 +9,17 @@ import java.util.concurrent.TimeUnit;
 
 public class RDBParser {
 
+    public static void parseInitialRDBFile(Config config) {
+
+        if (config.rdbFile() != null && config.rdbFile().exists()) {
+            try(BufferedInputStream bis = new BufferedInputStream(new FileInputStream(config.rdbFile()))) {
+                RDBParser.parseRDB(bis);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException("Cannot read keys");
+            }
+        }
+    }
 
     public static void parseRDB(BufferedInputStream bis) throws IOException {
 
