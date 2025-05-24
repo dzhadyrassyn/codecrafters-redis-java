@@ -40,3 +40,6 @@ For the next: I would like to refactor the code, remove unnecessary logs
 
 ### 23.05.2025
 Target: remove logs, refactor
+
+### 24.05.2025
+Finish WAIT functionality with some clean up with refactoring
