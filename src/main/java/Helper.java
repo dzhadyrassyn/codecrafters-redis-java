@@ -67,4 +67,14 @@ public class Helper {
         }
         return response.toString();
     }
+
+    public static String formatType(String value) {
+
+        return String.format("+%s\r\n", value);
+    }
+
+    public static String formatCount(int count) {
+
+        return String.format(":%d\r\n", count);
+    }
 }

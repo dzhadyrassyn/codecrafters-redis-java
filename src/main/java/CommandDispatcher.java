@@ -30,15 +30,27 @@ public class CommandDispatcher {
             case "REPLCONF" -> handleReplConf(args, ack);
             case "PSYNC" -> handlePSync();
             case "WAIT" -> handleWait(args);
+            case "TYPE" -> handleType(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleType(String[] args) {
+
+        String key = args[1];
+        String value = Storage.get(key);
+        if (value != null) {
+            return new TextResponse(Helper.formatType("string"));
+        }
+
+        return new TextResponse(Helper.formatType("none"));
     }
 
     private RedisResponse handleWait(String[] args) {
 
         long expectedReplicas = Long.parseLong(args[1]);
         if (expectedReplicas == 0) {
-            return new TextResponse(String.format(":%d\r\n", 0));
+            return new TextResponse(Helper.formatCount(0));
         }
         long expireTime = Long.parseLong(args[2]);
 
@@ -55,7 +67,7 @@ public class CommandDispatcher {
         int acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
         System.out.println("Acknowledged: " + acknowledged);
-        return new TextResponse(String.format(":%d\r\n", acknowledged));
+        return new TextResponse(Helper.formatCount(acknowledged));
     }
 
     private RedisResponse handleSetCommand(String[] args) {
