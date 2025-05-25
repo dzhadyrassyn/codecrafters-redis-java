@@ -23,9 +23,9 @@ public class Storage {
 
     private static final Map<String, ValueWithExpiry> data = new ConcurrentHashMap<>();
 
-    static {
-        startBackgroundCleanup();
-    }
+//    static {
+//        startBackgroundCleanup();
+//    }
 
     private static void startBackgroundCleanup() {
         Thread.startVirtualThread(() -> {
