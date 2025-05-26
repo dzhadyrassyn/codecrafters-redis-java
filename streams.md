@@ -7,3 +7,5 @@ Result: added The TYPE command
 
 ### 26.05.2025
 Target: Add XADD command processing 
+
+Added simple StreamStorage that saves a stream and one entry. Probably need to refactor the data structure late

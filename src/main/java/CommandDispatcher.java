@@ -31,8 +31,17 @@ public class CommandDispatcher {
             case "PSYNC" -> handlePSync();
             case "WAIT" -> handleWait(args);
             case "TYPE" -> handleType(args);
+            case "XADD" -> handleXAdd(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleXAdd(String[] args) {
+
+        String streamName = args[1];
+        String[] streamArgs = Arrays.copyOfRange(args, 2, args.length);
+        String id = StreamStorage.add(streamName, streamArgs);
+        return new TextResponse(Helper.formatBulkString(id));
     }
 
     private RedisResponse handleType(String[] args) {
@@ -41,6 +50,11 @@ public class CommandDispatcher {
         String value = Storage.get(key);
         if (value != null) {
             return new TextResponse(Helper.formatType("string"));
+        }
+
+        boolean isStream = StreamStorage.contains(key);
+        if (isStream) {
+            return new TextResponse(Helper.formatType("stream"));
         }
 
         return new TextResponse(Helper.formatType("none"));
