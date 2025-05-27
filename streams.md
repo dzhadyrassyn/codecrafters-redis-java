@@ -9,3 +9,6 @@ Result: added The TYPE command
 Target: Add XADD command processing 
 
 Added simple StreamStorage that saves a stream and one entry. Probably need to refactor the data structure late
+
+### 27.05.2025
+Target: Add validation for entry ids
