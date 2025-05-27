@@ -12,3 +12,5 @@ Added simple StreamStorage that saves a stream and one entry. Probably need to r
 
 ### 27.05.2025
 Target: Add validation for entry ids
+
+Refactored my StreamStorage to become cleaner

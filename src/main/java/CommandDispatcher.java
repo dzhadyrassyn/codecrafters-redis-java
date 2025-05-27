@@ -40,6 +40,7 @@ public class CommandDispatcher {
 
         String streamName = args[1];
         String[] streamArgs = Arrays.copyOfRange(args, 2, args.length);
+
         String id = StreamStorage.add(streamName, streamArgs);
         return new TextResponse(Helper.formatBulkString(id));
     }
