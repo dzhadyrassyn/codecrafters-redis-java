@@ -14,3 +14,5 @@ Added simple StreamStorage that saves a stream and one entry. Probably need to r
 Target: Add validation for entry ids
 
 Refactored my StreamStorage to become cleaner
+
+Target reached. Added validation for stream id ms-sequence

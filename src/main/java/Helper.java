@@ -58,6 +58,11 @@ public class Helper {
         return String.format("$%d\r\n%s\r\n", value.length(), value);
     }
 
+    public static String formatSimpleError(String value) {
+
+        return String.format("-%s\r\n", value);
+    }
+
     public static String formatBulkArray(String... args) {
 
         StringBuilder response = new StringBuilder();

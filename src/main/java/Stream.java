@@ -17,4 +17,8 @@ public class Stream {
         entries.add(new StreamEntry(id, data));
         return id;
     }
+
+    public List<StreamEntry> getEntries() {
+        return entries;
+    }
 }

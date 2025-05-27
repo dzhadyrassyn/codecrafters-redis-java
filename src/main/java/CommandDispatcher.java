@@ -41,7 +41,12 @@ public class CommandDispatcher {
         String streamName = args[1];
         String[] streamArgs = Arrays.copyOfRange(args, 2, args.length);
 
-        String id = StreamStorage.add(streamName, streamArgs);
+        String id = "emptyId";
+        try {
+            id = StreamStorage.add(streamName, streamArgs);
+        } catch (InvalidStreamIdArgumentException e) {
+            return new TextResponse(e.getMessage());
+        }
         return new TextResponse(Helper.formatBulkString(id));
     }
 
