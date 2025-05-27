@@ -31,7 +31,7 @@ public class RDBParser {
         }
 
         String versionNumber = readVersion(dis);
-        System.out.println("HEADER SECTION: " + magicString + versionNumber);
+//        System.out.println("HEADER SECTION: " + magicString + versionNumber);
 
         while (dis.available() > 0) {
             int opCode = dis.readUnsignedByte();
@@ -39,17 +39,17 @@ public class RDBParser {
             if (opCode == 0xFA) { // Metadata section
                 String key = readString(dis);
                 String value = readString(dis);
-                System.out.println("Metadata: " + key + " = " + value);
+//                System.out.println("Metadata: " + key + " = " + value);
             } else if (opCode == 0xFE) { // Database selector
                 int dbNumber = dis.readUnsignedByte();
-                System.out.println("\nSwitched to database: " + dbNumber);
+//                System.out.println("\nSwitched to database: " + dbNumber);
             } else if (opCode == 0xFB) { // RDB_OPCODE_RESIZEDB
                 int dbHashTableSize = readLength(dis);
                 int expiryHashTableSize = readLength(dis);
-                System.out.printf("Resize DB - keys: %d, expires: %d%n", dbHashTableSize, expiryHashTableSize);
+//                System.out.printf("Resize DB - keys: %d, expires: %d%n", dbHashTableSize, expiryHashTableSize);
             } else if (opCode == 0xFD) { // Expiry time (seconds)
                 int expiry = readLittleEndianInt(dis);
-                System.out.println("Key with expiry: " + expiry);
+//                System.out.println("Key with expiry: " + expiry);
                 int valueType = dis.readUnsignedByte();
                 if (valueType == 0x00) { // string
                     saveKeyValueToStorage(dis, TimeUnit.SECONDS.toMillis(expiry));
@@ -58,7 +58,7 @@ public class RDBParser {
                 }
             } else if (opCode == 0xFC) { // Expiry time (milliseconds)
                 long expiry = readLittleEndianLong(dis);
-                System.out.println("Key with expiry (ms): " + expiry);
+//                System.out.println("Key with expiry (ms): " + expiry);
                 int valueType = dis.readUnsignedByte();
                 if (valueType == 0x00) {
                     saveKeyValueToStorage(dis, expiry);
@@ -66,7 +66,7 @@ public class RDBParser {
                     throw new IOException("Unsupported value type after expiry (0xFC): " + valueType);
                 }
             } else if (opCode == 0xFF) { // End of an RDB file
-                System.out.println("End of RDB file.");
+//                System.out.println("End of RDB file.");
                 break;
             } else {
                 // Read Key
@@ -79,7 +79,7 @@ public class RDBParser {
 
         String key = readString(dis);
         String value = readString(dis);
-        System.out.println("Key: " + key + ", Value: " + value);
+//        System.out.println("Key: " + key + ", Value: " + value);
 
         if (expiry != 0L) {
             Storage.setWithExpiry(key, value, expiry - System.currentTimeMillis());
