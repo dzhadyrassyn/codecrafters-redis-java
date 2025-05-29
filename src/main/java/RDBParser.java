@@ -73,6 +73,8 @@ public class RDBParser {
                 saveKeyValueToStorage(dis, 0L);
             }
         }
+
+        System.out.println("RDB file parsed successfully");
     }
 
     private static void saveKeyValueToStorage(DataInputStream dis, long expiry) throws IOException {

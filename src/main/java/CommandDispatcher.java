@@ -39,11 +39,11 @@ public class CommandDispatcher {
     private RedisResponse handleXAdd(String[] args) {
 
         String streamName = args[1];
-        String[] streamArgs = Arrays.copyOfRange(args, 2, args.length);
+        String[] streamArgs = Arrays.copyOfRange(args, 3, args.length);
 
-        String id = "emptyId";
+        String id = args[2];
         try {
-            id = StreamStorage.add(streamName, streamArgs);
+            id = StreamStorage.add(streamName, id, streamArgs);
         } catch (InvalidStreamIdArgumentException e) {
             return new TextResponse(e.getMessage());
         }

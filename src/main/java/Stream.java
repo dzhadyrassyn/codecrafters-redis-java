@@ -7,11 +7,10 @@ public class Stream {
 
     private final List<StreamEntry> entries = new ArrayList<>();
 
-    public String add(String... values) {
+    public String add(String id, String... values) {
 
-        String id = values[0];
         Map<String, String> data = new HashMap<>();
-        for(int i = 1; i < values.length; i += 2) {
+        for(int i = 0; i < values.length; i += 2) {
             data.put(values[i], values[i + 1]);
         }
         entries.add(new StreamEntry(id, data));
