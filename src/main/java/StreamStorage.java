@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class StreamStorage {
@@ -22,6 +23,10 @@ public class StreamStorage {
     }
 
     private static String processId(List<StreamEntry> entries, String id) {
+
+        if (Objects.equals(id, "*")) {
+            id = System.currentTimeMillis() + "-*";
+        }
 
         String[] idAttributes = id.split("-");
 

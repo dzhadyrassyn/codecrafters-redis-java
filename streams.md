@@ -24,3 +24,5 @@ Result: Implemented the logic with some refactoring
 
 ### 30.05.2025
 Target: Fully auto-generated IDs
+
+Result: Added implementation. First I generated currentTime-* format, then called previous implementation of replacing sequence number
