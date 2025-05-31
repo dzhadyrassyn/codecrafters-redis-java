@@ -7,19 +7,17 @@ public class Stream {
 
     private final List<StreamEntry> entries = new ArrayList<>();
 
-    public StreamId add(StreamId id, Map<String, String> values) throws InvalidStreamIdArgumentException {
+    public void add(StreamId id, Map<String, String> values) throws InvalidStreamIdArgumentException {
 
-        generateAndValidateId(id);
+        processAndValidateId(id);
 
-        entries.add(new StreamEntry(id.toString(), values));
-        return id;
+        entries.add(new StreamEntry(id, values));
     }
 
-    public void generateAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
+    public void processAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
 
         if (id.shouldReplaceSequence()) {
             replaceSequencePart(id);
-            return;
         }
 
         validateId(id);
@@ -40,7 +38,8 @@ public class Stream {
         }
 
         StreamEntry entry = entries.getLast();
-        StreamId lastEntry = new StreamId(entry.id());
+
+        StreamId lastEntry = entry.id();
         if (id.timestamp == lastEntry.timestamp) {
             id.sequence = lastEntry.sequence + 1;
             return;
@@ -62,8 +61,8 @@ public class Stream {
         }
 
         StreamEntry entry = entries.getLast();
-        StreamId lastEntry = new StreamId(entry.id());
-        if (lastEntry.isGreaterThan(id)) {
+        StreamId lastEntry = entry.id();
+        if (!id.isGreaterThan(lastEntry)) {
             throw new InvalidStreamIdArgumentException(Helper.formatSimpleError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
         }
     }

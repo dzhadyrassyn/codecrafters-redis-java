@@ -15,7 +15,8 @@ public class StreamStorage {
 
         StreamId streamId = new StreamId(id);
 
+        stream.add(streamId, Helper.parseFieldValuePairs(values));
 
-        return stream.add(streamId, Helper.parseFieldValuePairs(values)).toString();
+        return streamId.toString();
     }
 }

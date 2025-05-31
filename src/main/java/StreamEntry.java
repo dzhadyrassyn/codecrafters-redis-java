@@ -1,3 +1,3 @@
 import java.util.Map;
 
-public record StreamEntry(String id, Map<String, String> values) {}
+public record StreamEntry(StreamId id, Map<String, String> values) {}
