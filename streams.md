@@ -26,3 +26,6 @@ Result: Implemented the logic with some refactoring
 Target: Fully auto-generated IDs
 
 Result: Added implementation. First I generated currentTime-* format, then called previous implementation of replacing sequence number
+
+### 31.05.2025
+Target: Add refactoring to StreamStorage

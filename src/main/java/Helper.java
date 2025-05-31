@@ -2,6 +2,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Helper {
 
@@ -81,5 +83,14 @@ public class Helper {
     public static String formatCount(int count) {
 
         return String.format(":%d\r\n", count);
+    }
+
+    public static Map<String, String> parseFieldValuePairs(String... values) {
+
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i < values.length; i += 2) {
+            map.put(values[i], values[i + 1]);
+        }
+        return map;
     }
 }
