@@ -10,19 +10,27 @@ public class StreamId {
 
     StreamId(String id) {
 
+        long[] parts = parse(id);
+        this.timestamp = parts[0];
+        this.sequence = parts[1];
+    }
+
+    long[] parse(String id) {
+
+        long[] parts = new long[2];
+        parts[1] = -1;
         if (id.equals("*")) {
-            this.timestamp = System.currentTimeMillis();
-            this.sequence = -1;
+            parts[0] = System.currentTimeMillis();
         } else {
             String[] split = id.split("-");
-            this.timestamp = Long.parseLong(split[0]);
+            parts[0] = Long.parseLong(split[0]);
 
-            if (split[1].equals("*")) {
-                this.sequence = -1;
-            } else {
-                this.sequence = Long.parseLong(split[1]);
+            if (!split[1].equals("*")) {
+                parts[1] = Long.parseLong(split[1]);
             }
         }
+
+        return parts;
     }
 
     boolean isGreaterThan(StreamId streamId) {

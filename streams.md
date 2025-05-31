@@ -29,3 +29,5 @@ Result: Added implementation. First I generated currentTime-* format, then calle
 
 ### 31.05.2025
 Target: Add refactoring to StreamStorage
+
+Result: Separated id to a separate class StreamId(timestamp, sequence). Refactored Stream to use StreamId. Changes StreamEntry to use StreamId as a key. Changed Stream to be more thread safe

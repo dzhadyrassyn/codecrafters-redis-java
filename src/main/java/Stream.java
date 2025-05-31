@@ -1,11 +1,11 @@
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Stream {
 
-    private final List<StreamEntry> entries = new ArrayList<>();
+    private final List<StreamEntry> entries = new CopyOnWriteArrayList<>();
 
     public void add(StreamId id, Map<String, String> values) throws InvalidStreamIdArgumentException {
 
