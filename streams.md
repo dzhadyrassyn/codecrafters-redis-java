@@ -36,3 +36,5 @@ Result: Separated id to a separate class StreamId(timestamp, sequence). Refactor
 Target: Finish Query entries from stream
 
 First, investigate the requirements
+
+Implemented the logic that fetches entries between request ranges. Also refactored the code, making StreamId immutable, and adding factory methods

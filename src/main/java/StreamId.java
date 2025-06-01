@@ -1,18 +1,28 @@
+import java.util.Objects;
+
 public class StreamId implements Comparable<StreamId> {
 
-    long timestamp;
-    long sequence;
+    private final long timestamp;
+    private final long sequence;
 
-    StreamId(long timestamp, long sequence) {
+    private StreamId(long timestamp, long sequence) {
         this.timestamp = timestamp;
         this.sequence = sequence;
     }
 
-    StreamId(String id) {
+    private StreamId(String id) {
 
         long[] parts = parse(id);
         this.timestamp = parts[0];
         this.sequence = parts[1];
+    }
+
+    public static StreamId fromString(String id) {
+        return new StreamId(id);
+    }
+
+    public static StreamId of(long timestamp, long sequence) {
+        return new StreamId(timestamp, sequence);
     }
 
     static long[] parse(String id) {
@@ -58,5 +68,29 @@ public class StreamId implements Comparable<StreamId> {
             return 0;
         }
         return Long.compare(this.sequence, other.sequence);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof StreamId other)) return false;
+        return timestamp == other.timestamp && sequence == other.sequence;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(timestamp, sequence);
+    }
+
+    public long timestamp() {
+        return timestamp;
+    }
+
+    public long sequence() {
+        return sequence;
+    }
+
+    public boolean hasSameTimestamp(StreamId other) {
+        return this.timestamp == other.timestamp;
     }
 }

@@ -1,70 +1,74 @@
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
 
 public class Stream {
 
-    private final List<StreamEntry> entries = new CopyOnWriteArrayList<>();
+    private final List<StreamEntry> entries = Collections.synchronizedList(new ArrayList<>());
 
-    public void add(StreamId id, Map<String, String> values) throws InvalidStreamIdArgumentException {
+    public StreamId add(StreamId id, Map<String, String> values) throws InvalidStreamIdArgumentException {
 
-        processAndValidateId(id);
+        StreamId processedId = processAndValidateId(id);
 
-        entries.add(new StreamEntry(id, values));
+        entries.add(new StreamEntry(processedId, values));
+
+        return processedId;
     }
 
-    private void processAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
+    private StreamId processAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
 
         if (id.shouldReplaceSequence()) {
-            replaceSequencePart(id);
+            id = replaceSequencePart(id);
         }
 
         validateId(id);
+
+        return id;
     }
 
-    private void replaceSequencePart(StreamId id) {
+    private StreamId replaceSequencePart(StreamId id) {
 
-        List<StreamEntry> entries = getEntries();
+        Optional<StreamEntry> lastEntryOptional = getLast();
 
-        if (id.timestamp == 0) {
-            id.sequence = 1;
-            return;
+        if (id.timestamp() == 0) {
+            return StreamId.of(id.timestamp(), 1L);
         }
 
-        if (entries.isEmpty()) {
-            id.sequence = 0;
-            return;
+        if (lastEntryOptional.isEmpty()) {
+            return StreamId.of(id.timestamp(), 0L);
         }
 
-        StreamEntry entry = entries.getLast();
-
-        StreamId lastEntry = entry.id();
-        if (id.timestamp == lastEntry.timestamp) {
-            id.sequence = lastEntry.sequence + 1;
-            return;
+        StreamId lastEntryId = lastEntryOptional.get().id();
+        if (id.hasSameTimestamp(lastEntryId)) {
+            return StreamId.of(id.timestamp(), lastEntryId.sequence() + 1);
         }
 
-        id.sequence = 0;
+        return StreamId.of(id.timestamp(), 0L);
     }
 
     private void validateId(StreamId id) throws InvalidStreamIdArgumentException {
 
-        List<StreamEntry> entries = getEntries();
+        Optional<StreamEntry> lastEntryOptional = getLast();
 
-        if (id.timestamp == 0 && id.sequence == 0) {
+        if (id.timestamp() == 0 && id.sequence() == 0) {
             throw new InvalidStreamIdArgumentException(Helper.formatSimpleError("ERR The ID specified in XADD must be greater than 0-0"));
         }
 
-        if (entries.isEmpty()) {
+        if (lastEntryOptional.isEmpty()) {
             return;
         }
 
-        StreamEntry entry = entries.getLast();
-        StreamId lastEntry = entry.id();
-        if (!id.isGreaterThan(lastEntry)) {
+        StreamId lastEntryId = lastEntryOptional.get().id();
+        if (!id.isGreaterThan(lastEntryId)) {
             throw new InvalidStreamIdArgumentException(Helper.formatSimpleError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
         }
+    }
+
+    public Optional<StreamEntry> getLast() {
+
+        if (entries.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(entries.getLast());
     }
 
     public List<StreamEntry> getEntries() {

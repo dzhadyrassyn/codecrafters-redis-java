@@ -14,19 +14,19 @@ public class StreamStorage {
 
         Stream stream = streams.computeIfAbsent(streamName, s -> new Stream());;
 
-        StreamId streamId = new StreamId(id);
+        StreamId streamId = StreamId.fromString(id);
 
-        stream.add(streamId, Helper.parseFieldValuePairs(values));
+        StreamId processedId = stream.add(streamId, Helper.parseFieldValuePairs(values));
 
-        return streamId.toString();
+        return processedId.toString();
     }
 
     public static List<StreamEntry> fetch(String streamName, String from, String to) {
 
         Stream stream = streams.computeIfAbsent(streamName, s -> new Stream());;
 
-        StreamId streamIdFrom = new StreamId(from);
-        StreamId streamIdTo = new StreamId(to);
+        StreamId streamIdFrom = StreamId.fromString(from);
+        StreamId streamIdTo = StreamId.fromString(to);
 
         return stream.getEntries(streamIdFrom, streamIdTo);
     }
