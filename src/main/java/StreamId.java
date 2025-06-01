@@ -1,4 +1,4 @@
-public class StreamId {
+public class StreamId implements Comparable<StreamId> {
 
     long timestamp;
     long sequence;
@@ -15,7 +15,7 @@ public class StreamId {
         this.sequence = parts[1];
     }
 
-    long[] parse(String id) {
+    static long[] parse(String id) {
 
         long[] parts = new long[2];
         parts[1] = -1;
@@ -24,8 +24,7 @@ public class StreamId {
         } else {
             String[] split = id.split("-");
             parts[0] = Long.parseLong(split[0]);
-
-            if (!split[1].equals("*")) {
+            if (split.length == 2 && !split[1].equals("*")) {
                 parts[1] = Long.parseLong(split[1]);
             }
         }
@@ -33,8 +32,12 @@ public class StreamId {
         return parts;
     }
 
-    boolean isGreaterThan(StreamId streamId) {
-        return this.timestamp > streamId.timestamp || (this.timestamp == streamId.timestamp && this.sequence > streamId.sequence);
+    boolean isGreaterThan(StreamId other) {
+        return this.compareTo(other) > 0;
+    }
+
+    boolean isGreaterOrEqualThan(StreamId other) {
+        return this.compareTo(other) >= 0;
     }
 
     boolean shouldReplaceSequence() {
@@ -44,5 +47,16 @@ public class StreamId {
     @Override
     public String toString() {
         return timestamp + "-" + sequence;
+    }
+
+    @Override
+    public int compareTo(StreamId other) {
+
+        int cmp = Long.compare(this.timestamp, other.timestamp);
+        if (cmp != 0) return cmp;
+        if (this.sequence == -1 || other.sequence == -1) {
+            return 0;
+        }
+        return Long.compare(this.sequence, other.sequence);
     }
 }

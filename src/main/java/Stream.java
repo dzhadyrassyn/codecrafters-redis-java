@@ -14,7 +14,7 @@ public class Stream {
         entries.add(new StreamEntry(id, values));
     }
 
-    public void processAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
+    private void processAndValidateId(StreamId id) throws InvalidStreamIdArgumentException {
 
         if (id.shouldReplaceSequence()) {
             replaceSequencePart(id);
@@ -69,5 +69,23 @@ public class Stream {
 
     public List<StreamEntry> getEntries() {
         return Collections.unmodifiableList(entries);
+    }
+
+    public List<StreamEntry> getEntries(StreamId from, StreamId to) {
+
+        int left = 0, right = entries.size() - 1;
+        while (left <= right && !entries.get(left).id().isGreaterOrEqualThan(from)) {
+            ++left;
+        }
+
+        while (left <= right && entries.get(right).id().isGreaterThan(to)) {
+            --right;
+        }
+
+        if (left > right) {
+            return Collections.emptyList();
+        }
+
+        return Collections.unmodifiableList(entries.subList(left, right + 1));
     }
 }

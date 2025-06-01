@@ -1,3 +1,4 @@
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,5 +19,15 @@ public class StreamStorage {
         stream.add(streamId, Helper.parseFieldValuePairs(values));
 
         return streamId.toString();
+    }
+
+    public static List<StreamEntry> fetch(String streamName, String from, String to) {
+
+        Stream stream = streams.computeIfAbsent(streamName, s -> new Stream());;
+
+        StreamId streamIdFrom = new StreamId(from);
+        StreamId streamIdTo = new StreamId(to);
+
+        return stream.getEntries(streamIdFrom, streamIdTo);
     }
 }

@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 public class CommandDispatcher {
 
@@ -32,8 +33,20 @@ public class CommandDispatcher {
             case "WAIT" -> handleWait(args);
             case "TYPE" -> handleType(args);
             case "XADD" -> handleXAdd(args);
+            case "XRANGE" -> handleXRange(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleXRange(String[] args) {
+
+        String streamName = args[1];
+        String from = args[2];
+        String to = args[3];
+
+        List<StreamEntry> data = StreamStorage.fetch(streamName, from, to);
+
+        return new TextResponse(Helper.formatXRange(data));
     }
 
     private RedisResponse handleXAdd(String[] args) {

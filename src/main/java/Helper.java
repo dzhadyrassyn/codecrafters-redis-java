@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Helper {
@@ -92,5 +93,27 @@ public class Helper {
             map.put(values[i], values[i + 1]);
         }
         return map;
+    }
+
+    public static String formatXRange(List<StreamEntry> data) {
+
+        int size = data.size();
+        StringBuilder response = new StringBuilder();
+        response.append("*").append(data.size()).append("\r\n");
+        for (int i = 0; i < size; i++) {
+            StreamEntry entry = data.get(i);
+            response.append("*").append(2).append("\r\n");
+            String id = entry.id().toString();
+            response.append(formatBulkString(id));
+
+            int valuesSize = entry.values().size() * 2;
+            response.append("*").append(valuesSize).append("\r\n");
+            for(String key : entry.values().keySet()) {
+                response.append(formatBulkString(key));
+                response.append(formatBulkString(entry.values().get(key)));
+            }
+        }
+
+        return response.toString();
     }
 }
