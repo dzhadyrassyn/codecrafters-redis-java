@@ -23,7 +23,7 @@ public class Server {
 
             while (true) {
                 Socket socket = serverSocket.accept();
-                System.out.println("New connection from " + socket.getRemoteSocketAddress());
+//                System.out.println("New connection from " + socket.getRemoteSocketAddress());
 
                 Thread.startVirtualThread(() -> {
                     try {

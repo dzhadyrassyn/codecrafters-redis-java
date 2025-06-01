@@ -12,7 +12,7 @@ public class CommandDispatcher {
 
     public RedisResponse dispatch(String[] args, long ack) {
 
-        System.out.println("Processing command: " + Arrays.toString(args));
+//        System.out.println("Processing command: " + Arrays.toString(args));
 
         if (args == null || args.length == 0) {
             return new TextResponse("-ERR Empty command\r\n");
@@ -105,7 +105,7 @@ public class CommandDispatcher {
 
     private RedisResponse handleSetCommand(String[] args) {
 
-        System.out.println("Processing SET command");
+//        System.out.println("Processing SET command");
         String key = args[1];
         String value = args[2];
         Storage.set(key, value);

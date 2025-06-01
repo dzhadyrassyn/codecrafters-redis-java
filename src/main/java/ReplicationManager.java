@@ -27,9 +27,9 @@ public class ReplicationManager {
 
     public static void propagateToReplicas(String[] commandArgs) {
 
-        System.out.println("Propagating to replicas: " + String.join(" ", commandArgs));
+//        System.out.println("Propagating to replicas: " + String.join(" ", commandArgs));
         replicaConnections.removeIf(ctx -> ctx.getSocket().isClosed());
-        System.out.println("REPLICAS SIZE: " + replicaConnections.size());
+//        System.out.println("REPLICAS SIZE: " + replicaConnections.size());
 
         String command = Helper.formatBulkArray(commandArgs);
         byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
@@ -46,7 +46,7 @@ public class ReplicationManager {
         }
 
         Main.repl_offset.addAndGet(bytes.length);
-        System.out.println("Updating main replica offset after propagating to replicas: " + Main.repl_offset);
+//        System.out.println("Updating main replica offset after propagating to replicas: " + Main.repl_offset);
     }
 
     public static int getReplicaCount() {
