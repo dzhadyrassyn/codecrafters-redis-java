@@ -1,8 +1,5 @@
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Storage {
@@ -21,7 +18,7 @@ public class Storage {
         }
     }
 
-    private static final Map<String, ValueWithExpiry> data = new ConcurrentHashMap<>();
+    private static final Map<String, ValueWithExpiry> data = new HashMap<>();
 
 //    static {
 //        startBackgroundCleanup();
