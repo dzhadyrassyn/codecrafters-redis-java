@@ -38,3 +38,6 @@ Target: Finish Query entries from stream
 First, investigate the requirements
 
 Implemented the logic that fetches entries between request ranges. Also refactored the code, making StreamId immutable, and adding factory methods
+
+### 01.06.2025
+Target: Add Query with -
