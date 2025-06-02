@@ -31,6 +31,8 @@ public class StreamId implements Comparable<StreamId> {
         parts[1] = -1;
         if (id.equals("*")) {
             parts[0] = System.currentTimeMillis();
+        } else if(id.equals("-")) {
+            parts[0] = 0L;
         } else {
             String[] split = id.split("-");
             parts[0] = Long.parseLong(split[0]);

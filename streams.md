@@ -39,5 +39,8 @@ First, investigate the requirements
 
 Implemented the logic that fetches entries between request ranges. Also refactored the code, making StreamId immutable, and adding factory methods
 
-### 01.06.2025
+### 02.06.2025
 Target: Add Query with -
+
+Result. Finish adding query with start time for xrange as "-"
+Simply changed the parsing of StreamId to make a timestamp of 0 for "-"
