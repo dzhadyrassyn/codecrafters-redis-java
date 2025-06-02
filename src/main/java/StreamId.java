@@ -29,7 +29,7 @@ public class StreamId implements Comparable<StreamId> {
 
         long[] parts = new long[2];
         parts[1] = -1;
-        if (id.equals("*")) {
+        if (id.equals("*") || id.equals("+")) {
             parts[0] = System.currentTimeMillis();
         } else if(id.equals("-")) {
             parts[0] = 0L;

@@ -40,7 +40,7 @@ First, investigate the requirements
 Implemented the logic that fetches entries between request ranges. Also refactored the code, making StreamId immutable, and adding factory methods
 
 ### 02.06.2025
-Target: Add Query with -
+Target: Add Query with -, Query with +
 
-Result. Finish adding query with start time for xrange as "-"
-Simply changed the parsing of StreamId to make a timestamp of 0 for "-"
+Result. Finish adding query with start time for xrange as "-" and end time as "+"
+Simply changed the parsing of StreamId to make a timestamp of 0 for "-" and System.currentTimeMillis() for "+"
