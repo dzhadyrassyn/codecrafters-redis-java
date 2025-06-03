@@ -92,4 +92,22 @@ public class Stream {
 
         return Collections.unmodifiableList(entries.subList(left, right + 1));
     }
+
+    public List<StreamEntry> readFromExclusive(StreamId streamIdFrom) {
+
+        int i = 0;
+        while (i < entries.size()) {
+            StreamEntry entry = entries.get(i);
+            if (entry.id().isGreaterThan(streamIdFrom)) {
+                break;
+            }
+            ++i;
+        }
+
+        if (i == entries.size()) {
+            return Collections.emptyList();
+        }
+
+        return Collections.unmodifiableList(entries.subList(i, entries.size()));
+    }
 }

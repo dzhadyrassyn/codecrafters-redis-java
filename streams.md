@@ -44,3 +44,11 @@ Target: Add Query with -, Query with +
 
 Result. Finish adding query with start time for xrange as "-" and end time as "+"
 Simply changed the parsing of StreamId to make a timestamp of 0 for "-" and System.currentTimeMillis() for "+"
+
+### 03.06.2025
+Target: Query single stream using XREAD and Query multiple streams using XREAD
+
+First. Investigate the requirements
+
+Result. Finished adding XREAD command with multiple streams. Basically, I reused code snippets from xrange command, doing a search for each stream name separately, and after that formatting the response also using the previous formatting for xrange
+

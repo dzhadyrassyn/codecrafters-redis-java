@@ -97,23 +97,35 @@ public class Helper {
 
     public static String formatXRange(List<StreamEntry> data) {
 
-        int size = data.size();
         StringBuilder response = new StringBuilder();
         response.append("*").append(data.size()).append("\r\n");
-        for (int i = 0; i < size; i++) {
-            StreamEntry entry = data.get(i);
+        for (StreamEntry entry : data) {
             response.append("*").append(2).append("\r\n");
             String id = entry.id().toString();
             response.append(formatBulkString(id));
 
             int valuesSize = entry.values().size() * 2;
             response.append("*").append(valuesSize).append("\r\n");
-            for(String key : entry.values().keySet()) {
+            for (String key : entry.values().keySet()) {
                 response.append(formatBulkString(key));
                 response.append(formatBulkString(entry.values().get(key)));
             }
         }
 
         return response.toString();
+    }
+
+    public static String formatXRead(Map<String, List<StreamEntry>> data) {
+
+        StringBuilder response = new StringBuilder();
+        response.append("*").append(data.size()).append("\r\n");
+        for (Map.Entry<String, List<StreamEntry>> entry : data.entrySet()) {
+            response.append("*").append(2).append("\r\n");
+            response.append(formatBulkString(entry.getKey()));
+            response.append(formatXRange(entry.getValue()));
+        }
+
+        return response.toString();
+
     }
 }

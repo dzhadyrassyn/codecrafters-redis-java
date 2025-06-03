@@ -30,4 +30,12 @@ public class StreamStorage {
 
         return stream.getEntries(streamIdFrom, streamIdTo);
     }
+
+    public static List<StreamEntry> read(String streamName, String from) {
+
+        Stream stream = streams.computeIfAbsent(streamName, s -> new Stream());;
+        StreamId streamIdFrom = StreamId.fromString(from);
+
+        return stream.readFromExclusive(streamIdFrom);
+    }
 }

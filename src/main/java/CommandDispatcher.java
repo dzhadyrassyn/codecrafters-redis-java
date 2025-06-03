@@ -1,6 +1,5 @@
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class CommandDispatcher {
 
@@ -34,8 +33,31 @@ public class CommandDispatcher {
             case "TYPE" -> handleType(args);
             case "XADD" -> handleXAdd(args);
             case "XRANGE" -> handleXRange(args);
+            case "XREAD" -> handleXRead(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleXRead(String[] args) {
+
+        List<String> streams = new ArrayList<>();
+        List<String> times = new ArrayList<>();
+        for(int i = 2; i < args.length; i++) {
+            String currentArg = args[i];
+            if (currentArg.charAt(0) >= '0' && currentArg.charAt(0) <= '9') {
+                times.add(currentArg);
+            } else {
+                streams.add(currentArg);
+            }
+        }
+
+        Map<String, List<StreamEntry>> entries = new HashMap<>();
+        for (int i = 0; i < streams.size(); i++) {
+            List<StreamEntry> data = StreamStorage.read(streams.get(i), times.get(i));
+            entries.put(streams.get(i), data);
+        }
+
+        return new TextResponse(Helper.formatXRead(entries));
     }
 
     private RedisResponse handleXRange(String[] args) {
