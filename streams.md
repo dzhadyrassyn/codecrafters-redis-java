@@ -52,3 +52,8 @@ First. Investigate the requirements
 
 Result. Finished adding XREAD command with multiple streams. Basically, I reused code snippets from xrange command, doing a search for each stream name separately, and after that formatting the response also using the previous formatting for xrange
 
+### 05.06.2025
+Target: Start blocking reads
+
+First, investigate the requirements
+
