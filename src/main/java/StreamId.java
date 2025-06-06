@@ -44,6 +44,18 @@ public class StreamId implements Comparable<StreamId> {
         return parts;
     }
 
+    public long timestamp() {
+        return timestamp;
+    }
+
+    public long sequence() {
+        return sequence;
+    }
+
+    public boolean hasSameTimestamp(StreamId other) {
+        return this.timestamp == other.timestamp;
+    }
+
     boolean isGreaterThan(StreamId other) {
         return this.compareTo(other) > 0;
     }
@@ -54,11 +66,6 @@ public class StreamId implements Comparable<StreamId> {
 
     boolean shouldReplaceSequence() {
         return this.sequence == -1;
-    }
-
-    @Override
-    public String toString() {
-        return timestamp + "-" + sequence;
     }
 
     @Override
@@ -84,15 +91,8 @@ public class StreamId implements Comparable<StreamId> {
         return Objects.hash(timestamp, sequence);
     }
 
-    public long timestamp() {
-        return timestamp;
-    }
-
-    public long sequence() {
-        return sequence;
-    }
-
-    public boolean hasSameTimestamp(StreamId other) {
-        return this.timestamp == other.timestamp;
+    @Override
+    public String toString() {
+        return timestamp + "-" + sequence;
     }
 }
