@@ -40,6 +40,10 @@ public class CommandDispatcher {
 
     private RedisResponse handleXRead(String[] args) {
 
+        if (args[1].equals("block")) {
+            System.out.println("Block");
+        }
+
         List<String> streams = new ArrayList<>();
         List<String> times = new ArrayList<>();
         for(int i = 2; i < args.length; i++) {

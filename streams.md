@@ -57,3 +57,5 @@ Target: Start blocking reads
 
 First, investigate the requirements
 
+### 06.06.2025
+Start blocking
