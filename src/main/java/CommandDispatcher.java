@@ -40,13 +40,13 @@ public class CommandDispatcher {
 
     private RedisResponse handleXRead(String[] args) {
 
+        int k = 2;
         if (args[1].equals("block")) {
-            System.out.println("Block");
+            k = 4;
         }
-
         List<String> streams = new ArrayList<>();
         List<String> times = new ArrayList<>();
-        for(int i = 2; i < args.length; i++) {
+        for(int i = k; i < args.length; i++) {
             String currentArg = args[i];
             if (currentArg.charAt(0) >= '0' && currentArg.charAt(0) <= '9') {
                 times.add(currentArg);
@@ -55,13 +55,39 @@ public class CommandDispatcher {
             }
         }
 
+
+        if (!args[1].equals("block")) {
+            return new TextResponse(Helper.formatXRead(fetchXRead(streams, times), streams));
+        }
+
+
+        long blockTime = Long.parseLong(args[2]);
+        try {
+            Thread.sleep(blockTime);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        Map<String, List<StreamEntry>> entries = fetchXRead(streams, times);
+
+        boolean isEmptyData = entries.values().stream().anyMatch(List::isEmpty);
+        if (isEmptyData) {
+            return new TextResponse("$-1\r\n");
+        }
+
+        return new TextResponse(Helper.formatXRead(entries, streams));
+    }
+
+    private Map<String, List<StreamEntry>> fetchXRead(List<String> streams, List<String> times) {
+
         Map<String, List<StreamEntry>> entries = new HashMap<>();
+
         for (int i = 0; i < streams.size(); i++) {
             List<StreamEntry> data = StreamStorage.read(streams.get(i), times.get(i));
             entries.put(streams.get(i), data);
         }
 
-        return new TextResponse(Helper.formatXRead(entries));
+        return entries;
     }
 
     private RedisResponse handleXRange(String[] args) {

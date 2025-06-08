@@ -115,14 +115,14 @@ public class Helper {
         return response.toString();
     }
 
-    public static String formatXRead(Map<String, List<StreamEntry>> data) {
+    public static String formatXRead(Map<String, List<StreamEntry>> data, List<String> streams) {
 
         StringBuilder response = new StringBuilder();
         response.append("*").append(data.size()).append("\r\n");
-        for (Map.Entry<String, List<StreamEntry>> entry : data.entrySet()) {
+        for (String stream : streams) {
             response.append("*").append(2).append("\r\n");
-            response.append(formatBulkString(entry.getKey()));
-            response.append(formatXRange(entry.getValue()));
+            response.append(formatBulkString(stream));
+            response.append(formatXRange(data.get(stream)));
         }
 
         return response.toString();

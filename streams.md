@@ -59,3 +59,7 @@ First, investigate the requirements
 
 ### 06.06.2025
 Start blocking
+
+### 08.06.2025
+Added simple block reading mechanism. Simple Thread.wait(blockTime) is enough for now 
+
