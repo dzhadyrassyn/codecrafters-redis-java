@@ -61,5 +61,11 @@ First, investigate the requirements
 Start blocking
 
 ### 08.06.2025
-Added simple block reading mechanism. Simple Thread.wait(blockTime) is enough for now 
+Result: Added simple block reading mechanism. Simple Thread.wait(blockTime) is enough for now 
 
+### 09.06.2025
+Blocking reads without timeout
+
+First, investigate the requirements
+
+Result: Added lock mechanism. For any block time, the thread is waiting until a notify is called after the add method

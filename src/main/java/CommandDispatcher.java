@@ -62,20 +62,30 @@ public class CommandDispatcher {
 
 
         long blockTime = Long.parseLong(args[2]);
-        try {
-            Thread.sleep(blockTime);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        long deadline = System.currentTimeMillis() + blockTime;
+        Object lock = StreamLocks.getLock(streams.getFirst());
+        synchronized (lock) {
+            while (true) {
+                long leftTime = deadline - System.currentTimeMillis();
+                if (leftTime <= 0 && blockTime != 0) break;
+
+                try {
+                    lock.wait(leftTime);
+                } catch (InterruptedException e) {
+                    System.out.println("Interrupted");
+                    Thread.currentThread().interrupt();
+                    return new TextResponse("$-1\r\n");
+                }
+
+                Map<String, List<StreamEntry>> entries = fetchXRead(streams, times);
+                boolean hasEmptyData = entries.values().stream().anyMatch(List::isEmpty);
+                if (!hasEmptyData) {
+                    return new TextResponse(Helper.formatXRead(entries, streams));
+                }
+            }
         }
 
-        Map<String, List<StreamEntry>> entries = fetchXRead(streams, times);
-
-        boolean isEmptyData = entries.values().stream().anyMatch(List::isEmpty);
-        if (isEmptyData) {
-            return new TextResponse("$-1\r\n");
-        }
-
-        return new TextResponse(Helper.formatXRead(entries, streams));
+        return new TextResponse("$-1\r\n");
     }
 
     private Map<String, List<StreamEntry>> fetchXRead(List<String> streams, List<String> times) {

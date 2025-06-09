@@ -18,6 +18,10 @@ public class StreamStorage {
 
         StreamId processedId = stream.add(streamId, Helper.parseFieldValuePairs(values));
 
+        synchronized (StreamLocks.getLock(streamName)) {
+            StreamLocks.getLock(streamName).notifyAll();
+        }
+
         return processedId.toString();
     }
 
