@@ -50,16 +50,18 @@ public class CommandDispatcher {
             String currentArg = args[i];
             if (currentArg.charAt(0) >= '0' && currentArg.charAt(0) <= '9') {
                 times.add(currentArg);
+            } else if (currentArg.charAt(0) == '$') {
+                Optional<StreamEntry> last = StreamStorage.getLast(streams.getLast());
+                String time = last.map(streamEntry -> streamEntry.id().toString()).orElse("-");
+                times.add(time);
             } else {
                 streams.add(currentArg);
             }
         }
 
-
         if (!args[1].equals("block")) {
             return new TextResponse(Helper.formatXRead(fetchXRead(streams, times), streams));
         }
-
 
         long blockTime = Long.parseLong(args[2]);
         long deadline = System.currentTimeMillis() + blockTime;
@@ -70,7 +72,7 @@ public class CommandDispatcher {
                 if (leftTime <= 0 && blockTime != 0) break;
 
                 try {
-                    lock.wait(leftTime);
+                    lock.wait(blockTime == 0 ? 0 : leftTime);
                 } catch (InterruptedException e) {
                     System.out.println("Interrupted");
                     Thread.currentThread().interrupt();
@@ -81,6 +83,9 @@ public class CommandDispatcher {
                 boolean hasEmptyData = entries.values().stream().anyMatch(List::isEmpty);
                 if (!hasEmptyData) {
                     return new TextResponse(Helper.formatXRead(entries, streams));
+                }
+                if (blockTime == 0) {
+                    break;
                 }
             }
         }

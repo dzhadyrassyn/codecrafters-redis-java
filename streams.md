@@ -69,3 +69,8 @@ Blocking reads without timeout
 First, investigate the requirements
 
 Result: Added lock mechanism. For any block time, the thread is waiting until a notify is called after the add method
+
+Next: The last point for streams
+Blocking reads using $
+
+Result: Before fetching by xRead, I read the last added stream-id, save it, and use that for fetching entries after the saved streamId

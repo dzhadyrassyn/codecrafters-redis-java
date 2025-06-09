@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class StreamStorage {
@@ -41,5 +42,11 @@ public class StreamStorage {
         StreamId streamIdFrom = StreamId.fromString(from);
 
         return stream.readFromExclusive(streamIdFrom);
+    }
+
+    public static Optional<StreamEntry> getLast(String streamName) {
+
+        Stream stream = streams.computeIfAbsent(streamName, s -> new Stream());
+        return stream.getLast();
     }
 }
