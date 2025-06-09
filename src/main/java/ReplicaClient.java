@@ -58,7 +58,7 @@ public class ReplicaClient {
             CountingInputStream counter = new CountingInputStream(input);
             String[] args = Helper.parseRespCommand(counter);
 
-            System.out.println("Replica received: " + Arrays.toString(args));
+//            System.out.println("Replica received: " + Arrays.toString(args));
             if (args == null) {
                 System.out.println("Master closed connection");
                 break;
