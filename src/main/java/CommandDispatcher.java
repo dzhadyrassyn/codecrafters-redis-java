@@ -34,8 +34,28 @@ public class CommandDispatcher {
             case "XADD" -> handleXAdd(args);
             case "XRANGE" -> handleXRange(args);
             case "XREAD" -> handleXRead(args);
+            case "INCR" -> handleIncrCommand(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleIncrCommand(String[] args) {
+
+        String key = args[1];
+        String value = Storage.get(key);
+        if (value != null) {
+            try {
+                int newValue = Integer.parseInt(value) + 1;
+                Storage.set(key, String.valueOf(newValue));
+                return new  TextResponse(Helper.formatInteger(newValue));
+            } catch (NumberFormatException e) {
+                return new TextResponse(Helper.formatSimpleError("ERR value is not an integer or out of range"));
+            }
+        }
+        int startCount = 1;
+        Storage.set(key, String.valueOf(startCount));
+
+        return new TextResponse(Helper.formatInteger(startCount));
     }
 
     private RedisResponse handleXRead(String[] args) {
@@ -150,7 +170,7 @@ public class CommandDispatcher {
 
         long expectedReplicas = Long.parseLong(args[1]);
         if (expectedReplicas == 0) {
-            return new TextResponse(Helper.formatCount(0));
+            return new TextResponse(Helper.formatInteger(0));
         }
         long expireTime = Long.parseLong(args[2]);
 
@@ -167,7 +187,7 @@ public class CommandDispatcher {
         int acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
         System.out.println("Acknowledged: " + acknowledged);
-        return new TextResponse(Helper.formatCount(acknowledged));
+        return new TextResponse(Helper.formatInteger(acknowledged));
     }
 
     private RedisResponse handleSetCommand(String[] args) {

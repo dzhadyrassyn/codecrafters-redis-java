@@ -81,7 +81,7 @@ public class Helper {
         return String.format("+%s\r\n", value);
     }
 
-    public static String formatCount(int count) {
+    public static String formatInteger(int count) {
 
         return String.format(":%d\r\n", count);
     }
