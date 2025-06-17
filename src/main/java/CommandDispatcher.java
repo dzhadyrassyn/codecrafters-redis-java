@@ -35,8 +35,13 @@ public class CommandDispatcher {
             case "XRANGE" -> handleXRange(args);
             case "XREAD" -> handleXRead(args);
             case "INCR" -> handleIncrCommand(args);
+            case "MULTI" -> handleMultiCommand(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleMultiCommand(String[] args) {
+        return new TextResponse("+OK\r\n");
     }
 
     private RedisResponse handleIncrCommand(String[] args) {
