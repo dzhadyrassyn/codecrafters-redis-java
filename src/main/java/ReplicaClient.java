@@ -64,7 +64,7 @@ public class ReplicaClient {
                 break;
             }
 
-            commandDispatcher.dispatch(args, ackOffset);
+            commandDispatcher.dispatch(args, ackOffset, context);
             String commandFromMaster = String.join(" ", args);
             if (commandFromMaster.equals("REPLCONF GETACK *")) {
                 context.write(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ackOffset)));

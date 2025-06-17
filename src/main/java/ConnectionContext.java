@@ -4,12 +4,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class ConnectionContext implements Closeable {
     private final Socket socket;
     private final BufferedInputStream input;
     private final OutputStream output;
     private volatile long acknowledgedOffset = 0;
+    private Queue<String[]> transactionCommands = new LinkedList<>();
+    private boolean isInTransaction;
 
     public ConnectionContext(Socket socket) throws IOException {
         this.socket = socket;
@@ -50,5 +54,29 @@ public class ConnectionContext implements Closeable {
     @Override
     public void close() throws IOException {
         socket.close();
+    }
+
+    public void startTransaction() {
+        isInTransaction = true;
+    }
+
+    public boolean isInTransaction() {
+        return isInTransaction;
+    }
+
+    public void queueTransactionCommand(String[] command) {
+        transactionCommands.offer(command);
+    }
+
+    public void dequeueTransactionCommand() {
+        transactionCommands.poll();
+    }
+
+    public void finishTransaction() {
+        isInTransaction = false;
+    }
+
+    public Queue<String[]> getTransactionCommands() {
+        return transactionCommands;
     }
 }

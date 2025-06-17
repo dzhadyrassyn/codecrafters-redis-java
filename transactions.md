@@ -15,3 +15,5 @@ Result: Finished adding simple logic in CommandDispatcher new handleIncrCommand 
 1) Handle The MULTI command - Just return +OK\r\n for now
 
 2) Handle The EXEC command - Return simple error for now: ERR EXEC without MULTI
+
+3) Empty transaction. Add a logic in connection context to have transaction commands. For now, empty array is returned for EXEC

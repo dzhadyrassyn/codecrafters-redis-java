@@ -9,7 +9,7 @@ public class CommandDispatcher {
         this.config = config;
     }
 
-    public RedisResponse dispatch(String[] args, long ack) {
+    public RedisResponse dispatch(String[] args, long ack, ConnectionContext ctx) {
 
 //        System.out.println("Processing command: " + Arrays.toString(args));
 
@@ -35,17 +35,24 @@ public class CommandDispatcher {
             case "XRANGE" -> handleXRange(args);
             case "XREAD" -> handleXRead(args);
             case "INCR" -> handleIncrCommand(args);
-            case "MULTI" -> handleMultiCommand(args);
-            case "EXEC" -> handleExecCommand(args);
+            case "MULTI" -> handleMultiCommand(args, ctx);
+            case "EXEC" -> handleExecCommand(args, ctx);
             default -> unknownCommand(command);
         };
     }
 
-    private RedisResponse handleExecCommand(String[] args) {
-        return new TextResponse(Helper.formatSimpleError("ERR EXEC without MULTI"));
+    private RedisResponse handleExecCommand(String[] args, ConnectionContext ctx) {
+        if (!ctx.isInTransaction()) {
+            return new TextResponse(Helper.formatSimpleError("ERR EXEC without MULTI"));
+        }
+
+        ctx.finishTransaction();
+        return new TextResponse(Helper.formatBulkArray());
     }
 
-    private RedisResponse handleMultiCommand(String[] args) {
+    private RedisResponse handleMultiCommand(String[] args, ConnectionContext ctx) {
+
+        ctx.startTransaction();
         return new TextResponse("+OK\r\n");
     }
 

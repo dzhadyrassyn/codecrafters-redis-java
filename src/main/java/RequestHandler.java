@@ -41,7 +41,7 @@ public class RequestHandler {
 
     private void processOneCommand(ConnectionContext ctx, String[] args) throws IOException {
 
-        RedisResponse response = dispatcher.dispatch(args, 0L);
+        RedisResponse response = dispatcher.dispatch(args, 0L, ctx);
         if (response == null) {
             return;
         }
