@@ -36,8 +36,13 @@ public class CommandDispatcher {
             case "XREAD" -> handleXRead(args);
             case "INCR" -> handleIncrCommand(args);
             case "MULTI" -> handleMultiCommand(args);
+            case "EXEC" -> handleExecCommand(args);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleExecCommand(String[] args) {
+        return new TextResponse(Helper.formatSimpleError("ERR EXEC without MULTI"));
     }
 
     private RedisResponse handleMultiCommand(String[] args) {

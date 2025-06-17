@@ -5,13 +5,13 @@ Target: The INCR command
 
 Result: Finished adding simple logic in CommandDispatcher new handleIncrCommand method for 
 
-Key exists and has a numerical value (previous stages)
+1) Key exists and has a numerical value
 
-Key doesn't exist (previous stages)
+2) Key doesn't exist
 
-Key exists but doesn't have a numerical value (This stage)
+3) Key exists but doesn't have a numerical value
 
 ### 17.06.2025
-Handle The MULTI command
+1) Handle The MULTI command - Just return +OK\r\n for now
 
-Result: Just return +OK\r\n for now
+2) Handle The EXEC command - Return simple error for now: ERR EXEC without MULTI
