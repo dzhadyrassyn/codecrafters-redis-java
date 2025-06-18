@@ -17,3 +17,8 @@ Result: Finished adding simple logic in CommandDispatcher new handleIncrCommand 
 2) Handle The EXEC command - Return simple error for now: ERR EXEC without MULTI
 
 3) Empty transaction. Add a logic in connection context to have transaction commands. For now, empty array is returned for EXEC
+
+### 18.06.2025
+Target: Queueing commands
+
+Result: In CommandDispatcher before handling any command I am now checking if a context in in transaction mode. If it is, I queue the command and return QUEUED message

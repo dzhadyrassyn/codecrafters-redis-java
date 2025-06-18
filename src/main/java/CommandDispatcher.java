@@ -19,6 +19,11 @@ public class CommandDispatcher {
 
         String command = args[0].toUpperCase();
 
+        if (ctx.isInTransaction() && !command.equals("EXEC")) {
+            ctx.queueTransactionCommand(args);
+            return new TextResponse(Helper.formatType("QUEUED"));
+        }
+
         return switch (command) {
             case "PING" -> new TextResponse("+PONG\r\n");
             case "ECHO" -> new TextResponse(Helper.formatBulkString(args[1]));
