@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 
 public class ReplicaClient {
 
@@ -67,7 +68,7 @@ public class ReplicaClient {
             commandDispatcher.dispatch(args, ackOffset, context);
             String commandFromMaster = String.join(" ", args);
             if (commandFromMaster.equals("REPLCONF GETACK *")) {
-                context.write(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ackOffset)));
+                context.write(Helper.formatBulkArray(List.of("REPLCONF", "ACK", Long.toString(ackOffset))));
             }
             ackOffset += counter.getCount();
         }
@@ -77,7 +78,7 @@ public class ReplicaClient {
     private static void sendCommand(OutputStream out, String... args) throws IOException {
 
         System.out.println("Sending command to master: " + Arrays.toString(args));
-        String sendCommand = Helper.formatBulkArray(args);
+        String sendCommand = Helper.formatBulkArray(Arrays.stream(args).toList());
         out.write(sendCommand.getBytes(StandardCharsets.UTF_8));
         out.flush();
     }

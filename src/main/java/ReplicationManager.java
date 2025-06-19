@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -31,7 +32,7 @@ public class ReplicationManager {
         replicaConnections.removeIf(ctx -> ctx.getSocket().isClosed());
 //        System.out.println("REPLICAS SIZE: " + replicaConnections.size());
 
-        String command = Helper.formatBulkArray(commandArgs);
+        String command = Helper.formatBulkArray(Arrays.stream(commandArgs).toList());
         byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
 
         for (ConnectionContext connectionContext : replicaConnections) {
@@ -56,7 +57,7 @@ public class ReplicationManager {
     public static void sendGetAckToReplicas() {
 
         System.out.println("Sending ack to replicas");
-        byte[] getack = Helper.formatBulkArray("REPLCONF", "GETACK", "*").getBytes(StandardCharsets.UTF_8);
+        byte[] getack = Helper.formatBulkArray(List.of("REPLCONF", "GETACK", "*")).getBytes(StandardCharsets.UTF_8);
 
         for (ConnectionContext connectionContext : replicaConnections) {
             if (Main.repl_offset.get() == 0) {

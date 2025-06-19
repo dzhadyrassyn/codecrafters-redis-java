@@ -24,6 +24,13 @@ public class CommandDispatcher {
             return new TextResponse(Helper.formatType("QUEUED"));
         }
 
+        return dispatchInternal(args, ack, ctx);
+    }
+
+    private RedisResponse dispatchInternal(String[] args, long ack, ConnectionContext ctx) {
+
+        String command = args[0].toUpperCase();
+
         return switch (command) {
             case "PING" -> new TextResponse("+PONG\r\n");
             case "ECHO" -> new TextResponse(Helper.formatBulkString(args[1]));
@@ -47,12 +54,21 @@ public class CommandDispatcher {
     }
 
     private RedisResponse handleExecCommand(String[] args, ConnectionContext ctx) {
+
         if (!ctx.isInTransaction()) {
             return new TextResponse(Helper.formatSimpleError("ERR EXEC without MULTI"));
         }
 
+        List<String> transactionCommandResults = new ArrayList<>();
+        while (!ctx.isTransactionCommandsEmpty()) {
+            String[] transactionCommand = ctx.dequeueTransactionCommand();
+            RedisResponse dispatch = dispatchInternal(transactionCommand, 0, ctx);
+            String result = ((TextResponse) dispatch).data();
+
+            transactionCommandResults.add(result);
+        }
         ctx.finishTransaction();
-        return new TextResponse(Helper.formatBulkArray());
+        return new TextResponse(Helper.formatBulkArray(transactionCommandResults));
     }
 
     private RedisResponse handleMultiCommand(String[] args, ConnectionContext ctx) {
@@ -246,16 +262,16 @@ public class CommandDispatcher {
         if (args.length >= 3 && args[1].equalsIgnoreCase("GET")) {
             String configKey = args[2];
             if (configKey.equals("dir")) {
-                return new TextResponse(Helper.formatBulkArray(configKey, config.dir()));
+                return new TextResponse(Helper.formatBulkArray(List.of(configKey, config.dir())));
             } else if (configKey.equals("dbfilename")) {
-                return new TextResponse(Helper.formatBulkArray(configKey, config.dbfilename()));
+                return new TextResponse(Helper.formatBulkArray(List.of(configKey, config.dbfilename())));
             }
         }
-        return new TextResponse(Helper.formatBulkArray());
+        return new TextResponse(Helper.formatBulkArray(List.of()));
     }
 
     private RedisResponse handleKeyCommand() {
-        return new TextResponse(Helper.formatBulkArray(Storage.keys().toArray(String[]::new)));
+        return new TextResponse(Helper.formatBulkArray(Storage.keys()));
     }
 
     private RedisResponse handleInfoCommand(String[] args) {
@@ -280,7 +296,7 @@ public class CommandDispatcher {
     private RedisResponse handleReplConf(String[] args, long ack) {
 
         if (args.length == 3 && args[1].equals("GETACK") && args[2].equals("*")) {
-            return new TextResponse(Helper.formatBulkArray("REPLCONF", "ACK", Long.toString(ack)));
+            return new TextResponse(Helper.formatBulkArray(List.of("REPLCONF", "ACK", Long.toString(ack))));
         }
 
         System.out.println("Is it replconf?");

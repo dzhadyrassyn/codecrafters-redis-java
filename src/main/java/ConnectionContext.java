@@ -12,7 +12,7 @@ public class ConnectionContext implements Closeable {
     private final BufferedInputStream input;
     private final OutputStream output;
     private volatile long acknowledgedOffset = 0;
-    private Queue<String[]> transactionCommands = new LinkedList<>();
+    private final Queue<String[]> transactionCommands = new LinkedList<>();
     private boolean isInTransaction;
 
     public ConnectionContext(Socket socket) throws IOException {
@@ -68,15 +68,19 @@ public class ConnectionContext implements Closeable {
         transactionCommands.offer(command);
     }
 
-    public void dequeueTransactionCommand() {
-        transactionCommands.poll();
+    public String[] dequeueTransactionCommand() {
+        return transactionCommands.poll();
     }
 
     public void finishTransaction() {
         isInTransaction = false;
     }
 
-    public Queue<String[]> getTransactionCommands() {
-        return transactionCommands;
+    public boolean isTransactionCommandsEmpty() {
+        return transactionCommands.isEmpty();
+    }
+
+    public int getTransactionCommandsSize() {
+        return transactionCommands.size();
     }
 }

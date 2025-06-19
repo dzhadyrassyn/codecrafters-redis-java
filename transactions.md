@@ -22,3 +22,12 @@ Result: Finished adding simple logic in CommandDispatcher new handleIncrCommand 
 Target: Queueing commands
 
 Result: In CommandDispatcher before handling any command I am now checking if a context in in transaction mode. If it is, I queue the command and return QUEUED message
+
+Target: Executing a transaction
+
+Result: Added execution of commands. Bulk array formatting is failing now. GET returns a string by default, but a test case is expecting a number
+
+### 19.06.2025
+Target: Executing a transaction
+
+

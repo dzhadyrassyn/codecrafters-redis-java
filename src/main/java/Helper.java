@@ -66,10 +66,10 @@ public class Helper {
         return String.format("-%s\r\n", value);
     }
 
-    public static String formatBulkArray(String... args) {
+    public static String formatBulkArray(List<String> args) {
 
         StringBuilder response = new StringBuilder();
-        response.append("*").append(args.length).append("\r\n");
+        response.append("*").append(args.size()).append("\r\n");
         for(String arg : args) {
             response.append(formatBulkString(arg));
         }
