@@ -66,7 +66,7 @@ public class Helper {
         return String.format("-%s\r\n", value);
     }
 
-    public static String formatBulkArray(List<String> args) {
+    public static String formatBulkStringArray(List<String> args) {
 
         StringBuilder response = new StringBuilder();
         response.append("*").append(args.size()).append("\r\n");
@@ -76,7 +76,17 @@ public class Helper {
         return response.toString();
     }
 
-    public static String formatType(String value) {
+    public static String formatBulkArray(List<SimpleResponse> args) {
+
+        StringBuilder response = new StringBuilder();
+        response.append("*").append(args.size()).append("\r\n");
+        for(SimpleResponse arg : args) {
+            response.append(arg.getContent());
+        }
+        return response.toString();
+    }
+
+    public static String formatSimpleString(String value) {
 
         return String.format("+%s\r\n", value);
     }

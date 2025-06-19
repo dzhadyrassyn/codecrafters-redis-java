@@ -46,14 +46,11 @@ public class RequestHandler {
             return;
         }
 //        System.out.println("Response in processOneCommand: " + response);
-        if (response instanceof TextResponse(String data)) {
-            ctx.getOutput().write(data.getBytes(StandardCharsets.UTF_8));
+        if (response instanceof SimpleResponse simple) {
+            ctx.getOutput().write(simple.getContent().getBytes(StandardCharsets.UTF_8));
             ctx.getOutput().flush();
-        } else if (response instanceof RDBSyncResponse(String header, byte[] rdbBytes)) {
-            ctx.getOutput().write(header.getBytes(StandardCharsets.UTF_8));
-            ctx.getOutput().write(("$" + rdbBytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
-            ctx.getOutput().write(rdbBytes);
-            ctx.getOutput().flush();
+        } else if (response instanceof StreamableResponse streamable) {
+            streamable.writeTo(ctx.getOutput());
         }
     }
 }

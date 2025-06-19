@@ -30,4 +30,6 @@ Result: Added execution of commands. Bulk array formatting is failing now. GET r
 ### 19.06.2025
 Target: Executing a transaction
 
+Result: Refactored by creating different classes for each data type in redis. Finished transactions and returning bulk array as a response
+
 

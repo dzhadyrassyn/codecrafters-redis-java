@@ -49,7 +49,7 @@ public class Stream {
         Optional<StreamEntry> lastEntryOptional = getLast();
 
         if (id.timestamp() == 0 && id.sequence() == 0) {
-            throw new InvalidStreamIdArgumentException(Helper.formatSimpleError("ERR The ID specified in XADD must be greater than 0-0"));
+            throw new InvalidStreamIdArgumentException("ERR The ID specified in XADD must be greater than 0-0");
         }
 
         if (lastEntryOptional.isEmpty()) {
@@ -58,7 +58,7 @@ public class Stream {
 
         StreamId lastEntryId = lastEntryOptional.get().id();
         if (!id.isGreaterThan(lastEntryId)) {
-            throw new InvalidStreamIdArgumentException(Helper.formatSimpleError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
+            throw new InvalidStreamIdArgumentException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
         }
     }
 

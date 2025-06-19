@@ -14,14 +14,14 @@ public class CommandDispatcher {
 //        System.out.println("Processing command: " + Arrays.toString(args));
 
         if (args == null || args.length == 0) {
-            return new TextResponse("-ERR Empty command\r\n");
+            return new ErrorResponse("ERR Empty command");
         }
 
         String command = args[0].toUpperCase();
 
         if (ctx.isInTransaction() && !command.equals("EXEC")) {
             ctx.queueTransactionCommand(args);
-            return new TextResponse(Helper.formatType("QUEUED"));
+            return new SimpleStringResponse("QUEUED");
         }
 
         return dispatchInternal(args, ack, ctx);
@@ -32,8 +32,8 @@ public class CommandDispatcher {
         String command = args[0].toUpperCase();
 
         return switch (command) {
-            case "PING" -> new TextResponse("+PONG\r\n");
-            case "ECHO" -> new TextResponse(Helper.formatBulkString(args[1]));
+            case "PING" -> new SimpleStringResponse("PONG");
+            case "ECHO" -> new TextResponse(args[1]);
             case "SET" -> handleSetCommand(args);
             case "GET" -> handleGetCommand(args);
             case "CONFIG" -> handleConfigCommand(args);
@@ -56,25 +56,23 @@ public class CommandDispatcher {
     private RedisResponse handleExecCommand(String[] args, ConnectionContext ctx) {
 
         if (!ctx.isInTransaction()) {
-            return new TextResponse(Helper.formatSimpleError("ERR EXEC without MULTI"));
+            return new ErrorResponse("ERR EXEC without MULTI");
         }
 
-        List<String> transactionCommandResults = new ArrayList<>();
+        List<SimpleResponse> transactionCommandResults = new ArrayList<>();
         while (!ctx.isTransactionCommandsEmpty()) {
             String[] transactionCommand = ctx.dequeueTransactionCommand();
-            RedisResponse dispatch = dispatchInternal(transactionCommand, 0, ctx);
-            String result = ((TextResponse) dispatch).data();
-
-            transactionCommandResults.add(result);
+            SimpleResponse dispatch = (SimpleResponse) dispatchInternal(transactionCommand, 0, ctx);
+            transactionCommandResults.add(dispatch);
         }
         ctx.finishTransaction();
-        return new TextResponse(Helper.formatBulkArray(transactionCommandResults));
+        return new BulkArrayResponse(transactionCommandResults);
     }
 
     private RedisResponse handleMultiCommand(String[] args, ConnectionContext ctx) {
 
         ctx.startTransaction();
-        return new TextResponse("+OK\r\n");
+        return new SimpleStringResponse("OK");
     }
 
     private RedisResponse handleIncrCommand(String[] args) {
@@ -85,15 +83,15 @@ public class CommandDispatcher {
             try {
                 int newValue = Integer.parseInt(value) + 1;
                 Storage.set(key, String.valueOf(newValue));
-                return new  TextResponse(Helper.formatInteger(newValue));
+                return new IntegerResponse(newValue);
             } catch (NumberFormatException e) {
-                return new TextResponse(Helper.formatSimpleError("ERR value is not an integer or out of range"));
+                return new ErrorResponse("ERR value is not an integer or out of range");
             }
         }
         int startCount = 1;
         Storage.set(key, String.valueOf(startCount));
 
-        return new TextResponse(Helper.formatInteger(startCount));
+        return new IntegerResponse(startCount);
     }
 
     private RedisResponse handleXRead(String[] args) {
@@ -118,7 +116,7 @@ public class CommandDispatcher {
         }
 
         if (!args[1].equals("block")) {
-            return new TextResponse(Helper.formatXRead(fetchXRead(streams, times), streams));
+            return new XReadResponse(fetchXRead(streams, times), streams);
         }
 
         long blockTime = Long.parseLong(args[2]);
@@ -134,13 +132,13 @@ public class CommandDispatcher {
                 } catch (InterruptedException e) {
                     System.out.println("Interrupted");
                     Thread.currentThread().interrupt();
-                    return new TextResponse("$-1\r\n");
+                    return new NullStringResponse();
                 }
 
                 Map<String, List<StreamEntry>> entries = fetchXRead(streams, times);
                 boolean hasEmptyData = entries.values().stream().anyMatch(List::isEmpty);
                 if (!hasEmptyData) {
-                    return new TextResponse(Helper.formatXRead(entries, streams));
+                    return new XReadResponse(entries, streams);
                 }
                 if (blockTime == 0) {
                     break;
@@ -148,7 +146,7 @@ public class CommandDispatcher {
             }
         }
 
-        return new TextResponse("$-1\r\n");
+        return new NullStringResponse();
     }
 
     private Map<String, List<StreamEntry>> fetchXRead(List<String> streams, List<String> times) {
@@ -171,7 +169,7 @@ public class CommandDispatcher {
 
         List<StreamEntry> data = StreamStorage.fetch(streamName, from, to);
 
-        return new TextResponse(Helper.formatXRange(data));
+        return new XRangeResponse(data);
     }
 
     private RedisResponse handleXAdd(String[] args) {
@@ -183,9 +181,9 @@ public class CommandDispatcher {
         try {
             id = StreamStorage.add(streamName, id, streamArgs);
         } catch (InvalidStreamIdArgumentException e) {
-            return new TextResponse(e.getMessage());
+            return new ErrorResponse(e.getMessage());
         }
-        return new TextResponse(Helper.formatBulkString(id));
+        return new TextResponse(id);
     }
 
     private RedisResponse handleType(String[] args) {
@@ -193,22 +191,22 @@ public class CommandDispatcher {
         String key = args[1];
         String value = Storage.get(key);
         if (value != null) {
-            return new TextResponse(Helper.formatType("string"));
+            return new SimpleStringResponse("string");
         }
 
         boolean isStream = StreamStorage.contains(key);
         if (isStream) {
-            return new TextResponse(Helper.formatType("stream"));
+            return new SimpleStringResponse("stream");
         }
 
-        return new TextResponse(Helper.formatType("none"));
+        return new SimpleStringResponse("none");
     }
 
     private RedisResponse handleWait(String[] args) {
 
         long expectedReplicas = Long.parseLong(args[1]);
         if (expectedReplicas == 0) {
-            return new TextResponse(Helper.formatInteger(0));
+            return new IntegerResponse(0);
         }
         long expireTime = Long.parseLong(args[2]);
 
@@ -225,7 +223,7 @@ public class CommandDispatcher {
         int acknowledged = ReplicationManager.countReplicasAcknowledged(targetOffset);
 
         System.out.println("Acknowledged: " + acknowledged);
-        return new TextResponse(Helper.formatInteger(acknowledged));
+        return new IntegerResponse(acknowledged);
     }
 
     private RedisResponse handleSetCommand(String[] args) {
@@ -242,7 +240,7 @@ public class CommandDispatcher {
 
         ReplicationManager.propagateToReplicas(args);
         if (config.isMaster()) {
-            return new TextResponse("+OK\r\n");
+            return new SimpleStringResponse("OK");
         }
 
         return null;
@@ -252,9 +250,9 @@ public class CommandDispatcher {
 
         String value = Storage.get(args[1]);
         if (value == null) {
-            return new TextResponse("$-1\r\n"); // Null bulk string
+            return new NullStringResponse();
         }
-        return new TextResponse(Helper.formatBulkString(value));
+        return new TextResponse(value);
     }
 
     private RedisResponse handleConfigCommand(String[] args) {
@@ -262,23 +260,23 @@ public class CommandDispatcher {
         if (args.length >= 3 && args[1].equalsIgnoreCase("GET")) {
             String configKey = args[2];
             if (configKey.equals("dir")) {
-                return new TextResponse(Helper.formatBulkArray(List.of(configKey, config.dir())));
+                return new BulkStringArrayResponse(List.of(configKey, config.dir()));
             } else if (configKey.equals("dbfilename")) {
-                return new TextResponse(Helper.formatBulkArray(List.of(configKey, config.dbfilename())));
+                return new BulkStringArrayResponse(List.of(configKey, config.dbfilename()));
             }
         }
-        return new TextResponse(Helper.formatBulkArray(List.of()));
+        return new BulkStringArrayResponse(List.of());
     }
 
     private RedisResponse handleKeyCommand() {
-        return new TextResponse(Helper.formatBulkArray(Storage.keys()));
+        return new BulkStringArrayResponse(Storage.keys());
     }
 
     private RedisResponse handleInfoCommand(String[] args) {
 
         if (args.length < 2 || !args[1].equalsIgnoreCase("replication")) {
             System.out.println("Is it here in handleInfo?");
-            return new TextResponse("+OK\r\n");
+            return new SimpleStringResponse("OK");
         }
         String replicationInfo = """
             # Replication
@@ -290,17 +288,16 @@ public class CommandDispatcher {
                 Main.MASTER_REPL_ID,
                 0
         );
-        return new TextResponse(Helper.formatBulkString(replicationInfo));
+        return new TextResponse(replicationInfo);
     }
 
     private RedisResponse handleReplConf(String[] args, long ack) {
 
         if (args.length == 3 && args[1].equals("GETACK") && args[2].equals("*")) {
-            return new TextResponse(Helper.formatBulkArray(List.of("REPLCONF", "ACK", Long.toString(ack))));
+            return new BulkStringArrayResponse(List.of("REPLCONF", "ACK", Long.toString(ack)));
         }
 
-        System.out.println("Is it replconf?");
-        return new TextResponse("+OK\r\n");
+        return new SimpleStringResponse("OK");
     }
 
     private RedisResponse handlePSync() {
@@ -308,7 +305,7 @@ public class CommandDispatcher {
     }
 
     private RedisResponse unknownCommand(String cmd) {
-        return new TextResponse("-ERR unknown command '" + cmd.toUpperCase() + "'\r\n");
+        return new ErrorResponse("ERR unknown command '" + cmd.toUpperCase());
     }
 
     public void handleReplicaHandshakeCommand(String[] args, ConnectionContext context) throws IOException {
