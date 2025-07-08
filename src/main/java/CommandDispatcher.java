@@ -56,10 +56,13 @@ public class CommandDispatcher {
 
     private RedisResponse handleTransactionDiscardCommand(String[] args, ConnectionContext ctx) {
 
-        ctx.finishTransaction();
-        ctx.clearTransactionCommands();
-
-        return new SimpleStringResponse("OK");
+        if (ctx.isInTransaction()) {
+            ctx.finishTransaction();
+            ctx.clearTransactionCommands();
+            return new SimpleStringResponse("OK");
+        } else {
+            return new ErrorResponse("ERR DISCARD without MULTI");
+        }
     }
 
     private RedisResponse handleExecCommand(String[] args, ConnectionContext ctx) {
