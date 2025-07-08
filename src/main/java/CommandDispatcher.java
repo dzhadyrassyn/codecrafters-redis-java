@@ -19,7 +19,7 @@ public class CommandDispatcher {
 
         String command = args[0].toUpperCase();
 
-        if (ctx.isInTransaction() && !command.equals("EXEC")) {
+        if (ctx.isInTransaction() && !command.equals("EXEC") && !command.equals("DISCARD")) {
             ctx.queueTransactionCommand(args);
             return new SimpleStringResponse("QUEUED");
         }
