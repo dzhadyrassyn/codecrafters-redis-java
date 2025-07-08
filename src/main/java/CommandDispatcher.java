@@ -49,8 +49,17 @@ public class CommandDispatcher {
             case "INCR" -> handleIncrCommand(args);
             case "MULTI" -> handleMultiCommand(args, ctx);
             case "EXEC" -> handleExecCommand(args, ctx);
+            case "DISCARD" -> handleTransactionDiscardCommand(args, ctx);
             default -> unknownCommand(command);
         };
+    }
+
+    private RedisResponse handleTransactionDiscardCommand(String[] args, ConnectionContext ctx) {
+
+        ctx.finishTransaction();
+        ctx.clearTransactionCommands();
+
+        return new SimpleStringResponse("OK");
     }
 
     private RedisResponse handleExecCommand(String[] args, ConnectionContext ctx) {

@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 public class ConnectionContext implements Closeable {
+
     private final Socket socket;
     private final BufferedInputStream input;
     private final OutputStream output;
@@ -82,5 +83,9 @@ public class ConnectionContext implements Closeable {
 
     public int getTransactionCommandsSize() {
         return transactionCommands.size();
+    }
+
+    public void clearTransactionCommands() {
+        transactionCommands.clear();
     }
 }

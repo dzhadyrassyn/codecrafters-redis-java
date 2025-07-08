@@ -32,4 +32,9 @@ Target: Executing a transaction
 
 Result: Refactored by creating different classes for each data type in redis. Finished transactions and returning bulk array as a response
 
+## 08.07.2025
+Target: Add Discard command
+
+Result: Added discard functionality
+
 
